@@ -52,6 +52,16 @@ class ApiService {
   // Auth endpoints
   async login(email: string, password: string) {
     const response = await this.api.post('/users/login', { email, password });
+    const { access_token, user } = response.data;
+    
+    // Store the token and user data in cookies
+    if (access_token) {
+      Cookies.set('auth_token', access_token, { expires: 7 }); // Expires in 7 days
+    }
+    if (user) {
+      Cookies.set('user_data', JSON.stringify(user), { expires: 7 });
+    }
+    
     return response.data;
   }
 
