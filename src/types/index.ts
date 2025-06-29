@@ -1,0 +1,140 @@
+export interface User {
+  id: number;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  dob?: Date;
+  phone?: string;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+  };
+  zip?: string;
+  country?: string;
+  googleSignIn?: string;
+  linkedSignIn?: string;
+  signupType: 'google' | 'email' | 'linkedIn';
+  isActive: boolean;
+  role: 'ADMIN' | 'VIEWER';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Client {
+  id: number;
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  company?: string;
+  position?: string;
+  phone?: string;
+  website?: string;
+  industry?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Email {
+  id: number;
+  userId: number;
+  taskName: string;
+  state: 'SCHEDULE' | 'DELIVERED' | 'FAILED';
+  client: Client;
+  outreach: Outreach;
+  outreachStateId: number;
+  mailbox: MailBox;
+  scheduled10minInterval: string;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  deliveryTime?: Date;
+  deliveryStatus?: string;
+  messageId?: string;
+  parentMessageId?: string;
+  opened: boolean;
+  replied: boolean;
+  openedEmail?: {
+    count: number;
+    openedAt: Date;
+  };
+  clicked?: Array<{
+    url: string;
+    clickedAt: Date;
+  }>;
+  subject?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Outreach {
+  id: number;
+  userId: number;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  templates?: EmailTemplate[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MailBox {
+  id: number;
+  userId: number;
+  email: string;
+  password: string;
+  smtpHost: string;
+  smtpPort: number;
+  imapHost: string;
+  imapPort: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmailTemplate {
+  id: number;
+  subject: string;
+  content: string;
+  type: string;
+  delay?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  user: User;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  dob?: Date;
+}
+
+export interface ApiError {
+  message: string;
+  statusCode: number;
+  error?: string;
+}
+
+export interface DashboardStats {
+  totalEmails: number;
+  deliveredEmails: number;
+  openedEmails: number;
+  repliedEmails: number;
+  totalClients: number;
+  activeOutreaches: number;
+  emailsThisWeek: number;
+  openRate: number;
+  replyRate: number;
+}
