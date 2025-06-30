@@ -20,7 +20,7 @@ interface Client {
   id: number;
   firstName: string;
   lastName: string;
-  email: string;
+  emailId: string;
   company?: string;
   position?: string;
   phone?: string;
@@ -71,7 +71,7 @@ export default function ClientsView() {
   const filteredClients = clients.filter(client =>
     client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.emailId.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (client.company && client.company.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -272,7 +272,7 @@ export default function ClientsView() {
                 <div className="mt-4 space-y-2">
                   <div className="flex items-center text-sm text-gray-500">
                     <EnvelopeIcon className="h-4 w-4 mr-2" />
-                    <span className="truncate">{client.email}</span>
+                    <span className="truncate">{client.emailId}</span>
                   </div>
                   {client.phone && (
                     <div className="flex items-center text-sm text-gray-500">
