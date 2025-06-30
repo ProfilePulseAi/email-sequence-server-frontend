@@ -10,7 +10,7 @@ interface Client {
   id?: number;
   firstName: string;
   lastName: string;
-  email: string;
+  emailId: string;
   company?: string;
   position?: string;
   phone?: string;
@@ -39,7 +39,7 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
     defaultValues: client || {
       firstName: '',
       lastName: '',
-      email: '',
+      emailId: '',
       company: '',
       position: '',
       phone: '',
@@ -57,7 +57,7 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
       reset({
         firstName: '',
         lastName: '',
-        email: '',
+        emailId: '',
         company: '',
         position: '',
         phone: '',
@@ -142,13 +142,13 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
         </div>
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="emailId" className="block text-sm font-medium text-gray-700">
             Email *
           </label>
           <input
             type="email"
-            id="email"
-            {...register('email', { 
+            id="emailId"
+            {...register('emailId', { 
               required: 'Email is required',
               pattern: {
                 value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -157,8 +157,8 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
             })}
             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
           />
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+          {errors.emailId && (
+            <p className="mt-1 text-sm text-red-600">{errors.emailId.message}</p>
           )}
         </div>
 
