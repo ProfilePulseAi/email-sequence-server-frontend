@@ -3,7 +3,6 @@
 import { useAuth } from '@/components/providers';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import Dashboard from '@/components/dashboard/Dashboard';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function HomePage() {
@@ -11,8 +10,12 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login');
+    if (!isLoading) {
+      if (user) {
+        router.push('/dashboard');
+      } else {
+        router.push('/login');
+      }
     }
   }, [user, isLoading, router]);
 
@@ -20,9 +23,6 @@ export default function HomePage() {
     return <LoadingSpinner />;
   }
 
-  if (!user) {
-    return null;
-  }
-
-  return <Dashboard />;
+  // Show loading while redirecting
+  return <LoadingSpinner />;
 }

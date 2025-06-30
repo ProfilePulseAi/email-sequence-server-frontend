@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers';
 import {
   HomeIcon,
@@ -10,27 +11,31 @@ import {
   InboxIcon,
   CogIcon,
   XMarkIcon,
-  Bars3Icon,
 } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
   currentView: string;
-  setCurrentView: (view: string) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
 }
 
 const navigation = [
-  { name: 'Overview', href: 'overview', icon: HomeIcon },
-  { name: 'Emails', href: 'emails', icon: EnvelopeIcon },
-  { name: 'Clients', href: 'clients', icon: UserGroupIcon },
-  { name: 'Outreach', href: 'outreach', icon: MegaphoneIcon },
-  { name: 'Mailbox', href: 'mailbox', icon: InboxIcon },
-  { name: 'Settings', href: 'settings', icon: CogIcon },
+  { name: 'Overview', href: '/dashboard', view: 'overview', icon: HomeIcon },
+  { name: 'Emails', href: '/dashboard/emails', view: 'emails', icon: EnvelopeIcon },
+  { name: 'Clients', href: '/dashboard/clients', view: 'clients', icon: UserGroupIcon },
+  { name: 'Outreach', href: '/dashboard/outreach', view: 'outreach', icon: MegaphoneIcon },
+  { name: 'Mailbox', href: '/dashboard/mailbox', view: 'mailbox', icon: InboxIcon },
+  { name: 'Settings', href: '/dashboard/settings', view: 'settings', icon: CogIcon },
 ];
 
-export default function Sidebar({ currentView, setCurrentView, isOpen, setIsOpen }: SidebarProps) {
+export default function Sidebar({ currentView, isOpen, setIsOpen }: SidebarProps) {
   const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const handleNavigation = (href: string) => {
+    router.push(href);
+    setIsOpen(false); // Close mobile sidebar after navigation
+  };
 
   return (
     <>
@@ -57,19 +62,16 @@ export default function Sidebar({ currentView, setCurrentView, isOpen, setIsOpen
                 {navigation.map((item) => (
                   <button
                     key={item.name}
-                    onClick={() => {
-                      setCurrentView(item.href);
-                      setIsOpen(false);
-                    }}
+                    onClick={() => handleNavigation(item.href)}
                     className={`${
-                      currentView === item.href
+                      currentView === item.view
                         ? 'bg-primary-100 border-primary-500 text-primary-700'
                         : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     } group flex items-center w-full px-2 py-2 text-sm font-medium border-l-4 transition-colors`}
                   >
                     <item.icon
                       className={`${
-                        currentView === item.href ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                        currentView === item.view ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
                       } mr-3 flex-shrink-0 h-6 w-6`}
                       aria-hidden="true"
                     />
@@ -93,16 +95,16 @@ export default function Sidebar({ currentView, setCurrentView, isOpen, setIsOpen
               {navigation.map((item) => (
                 <button
                   key={item.name}
-                  onClick={() => setCurrentView(item.href)}
+                  onClick={() => handleNavigation(item.href)}
                   className={`${
-                    currentView === item.href
+                    currentView === item.view
                       ? 'bg-primary-100 border-primary-500 text-primary-700'
                       : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   } group flex items-center w-full px-2 py-2 text-sm font-medium border-l-4 transition-colors`}
                 >
                   <item.icon
                     className={`${
-                      currentView === item.href ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                      currentView === item.view ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
                     } mr-3 flex-shrink-0 h-6 w-6`}
                     aria-hidden="true"
                   />

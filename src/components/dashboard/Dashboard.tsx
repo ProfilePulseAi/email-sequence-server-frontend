@@ -1,45 +1,31 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import DashboardOverview from './DashboardOverview';
-import EmailsView from './EmailsView';
-import ClientsView from './ClientsView';
-import OutreachView from './OutreachView';
-import MailboxView from './MailboxView';
-import SettingsView from './SettingsView';
 
-type View = 'overview' | 'emails' | 'clients' | 'outreach' | 'mailbox' | 'settings';
+interface DashboardProps {
+  children: ReactNode;
+}
 
-export default function Dashboard() {
-  const [currentView, setCurrentView] = useState<View>('overview');
+export default function Dashboard({ children }: DashboardProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
 
-  const renderView = () => {
-    switch (currentView) {
-      case 'overview':
-        return <DashboardOverview />;
-      case 'emails':
-        return <EmailsView />;
-      case 'clients':
-        return <ClientsView />;
-      case 'outreach':
-        return <OutreachView />;
-      case 'mailbox':
-        return <MailboxView />;
-      case 'settings':
-        return <SettingsView />;
-      default:
-        return <DashboardOverview />;
-    }
+  // Extract current view from pathname
+  const getCurrentView = () => {
+    if (pathname === '/dashboard') return 'overview';
+    const segments = pathname.split('/');
+    return segments[segments.length - 1] || 'overview';
   };
+
+  const currentView = getCurrentView();
 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar 
         currentView={currentView} 
-        setCurrentView={setCurrentView}
         isOpen={sidebarOpen}
         setIsOpen={setSidebarOpen}
       />
@@ -51,7 +37,7 @@ export default function Dashboard() {
         
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
           <div className="container mx-auto px-6 py-8">
-            {renderView()}
+            {children}
           </div>
         </main>
       </div>
