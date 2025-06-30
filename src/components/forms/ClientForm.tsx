@@ -53,11 +53,19 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
     try {
       setIsSubmitting(true);
       
+      // Filter out empty/null values
+      const filteredData = Object.entries(data).reduce((acc, [key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          acc[key as keyof Client] = value;
+        }
+        return acc;
+      }, {} as Partial<Client>);
+      
       if (isEditing && client?.id) {
-        await apiService.updateClient(client.id, data);
+        await apiService.updateClient(client.id, filteredData);
         toast.success('Client updated successfully');
       } else {
-        await apiService.createClient(data);
+        await apiService.createClient(filteredData);
         toast.success('Client created successfully');
       }
       
@@ -103,17 +111,14 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
 
           <div>
             <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-              Last Name *
+              Last Name
             </label>
             <input
               type="text"
               id="lastName"
-              {...register('lastName', { required: 'Last name is required' })}
+              {...register('lastName')}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             />
-            {errors.lastName && (
-              <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
-            )}
           </div>
         </div>
 
