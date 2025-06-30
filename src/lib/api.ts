@@ -199,27 +199,27 @@ class ApiService {
 
   // Client endpoints
   async getClients() {
-    const response = await this.api.get('/client');
+    const response = await this.api.get('/clients');
     return response.data;
   }
 
   async getAllClients() {
-    const response = await this.api.get('/client/admin');
+    const response = await this.api.get('/clients/admin');
     return response.data;
   }
 
   async createClient(clientData: any) {
-    const response = await this.api.post('/client', clientData);
+    const response = await this.api.post('/clients', clientData);
     return response.data;
   }
 
   async updateClient(id: number, clientData: any) {
-    const response = await this.api.put(`/client/${id}`, clientData);
+    const response = await this.api.put(`/clients/${id}`, clientData);
     return response.data;
   }
 
   async deleteClient(id: number) {
-    const response = await this.api.delete(`/client/${id}`);
+    const response = await this.api.delete(`/clients/${id}`);
     return response.data;
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { apiService } from '@/lib/api';
 import { toast } from 'react-hot-toast';
@@ -10,7 +10,7 @@ interface Client {
   id?: number;
   firstName: string;
   lastName: string;
-  emailId: string;
+  email: string;
   company?: string;
   position?: string;
   phone?: string;
@@ -39,7 +39,7 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
     defaultValues: client || {
       firstName: '',
       lastName: '',
-      emailId: '',
+      email: '',
       company: '',
       position: '',
       phone: '',
@@ -48,6 +48,25 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
       notes: '',
     },
   });
+
+  // Reset form when client prop changes (for editing)
+  useEffect(() => {
+    if (client) {
+      reset(client);
+    } else {
+      reset({
+        firstName: '',
+        lastName: '',
+        email: '',
+        company: '',
+        position: '',
+        phone: '',
+        website: '',
+        industry: '',
+        notes: '',
+      });
+    }
+  }, [client, reset]);
 
   const onSubmit = async (data: Client) => {
     try {
@@ -123,13 +142,13 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
         </div>
 
         <div>
-          <label htmlFor="emailId" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
             Email *
           </label>
           <input
             type="email"
-            id="emailId"
-            {...register('emailId', { 
+            id="email"
+            {...register('email', { 
               required: 'Email is required',
               pattern: {
                 value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -138,8 +157,8 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
             })}
             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
           />
-          {errors.emailId && (
-            <p className="mt-1 text-sm text-red-600">{errors.emailId.message}</p>
+          {errors.email && (
+            <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
           )}
         </div>
 
