@@ -17,7 +17,11 @@ export default function Dashboard({ children }: DashboardProps) {
   const getCurrentView = () => {
     if (pathname === '/dashboard') return 'overview';
     const segments = pathname.split('/');
-    return segments[segments.length - 1] || 'overview';
+    const dashboardIndex = segments.indexOf('dashboard');
+    if (dashboardIndex !== -1 && segments[dashboardIndex + 1]) {
+      return segments[dashboardIndex + 1];
+    }
+    return 'overview';
   };
 
   const currentView = getCurrentView();
@@ -36,7 +40,7 @@ export default function Dashboard({ children }: DashboardProps) {
         />
         
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
-          <div className="container mx-auto px-6 py-8">
+          <div className="max-w-7xl mx-auto px-6 py-8">
             {children}
           </div>
         </main>

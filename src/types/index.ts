@@ -126,6 +126,32 @@ export interface EmailTemplate {
   updatedAt: Date;
 }
 
+export interface Template {
+  id: number;
+  name: string;
+  description?: string;
+  filename: string;
+  filePath: string;
+  mimeType: string;
+  fileSize: number;
+  isActive: boolean;
+  userId: number;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface TemplateContent {
+  content: string;
+  template: Template;
+}
+
+export interface TemplateUploadResult {
+  success: boolean;
+  templateId: number;
+  message: string;
+  filePath: string;
+}
+
 export interface AuthResponse {
   access_token: string;
   user: User;

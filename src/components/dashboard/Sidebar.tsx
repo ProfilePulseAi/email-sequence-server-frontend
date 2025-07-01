@@ -10,6 +10,7 @@ import {
   MegaphoneIcon,
   InboxIcon,
   CogIcon,
+  DocumentTextIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Overview', href: '/dashboard', view: 'overview', icon: HomeIcon },
   { name: 'Emails', href: '/dashboard/emails', view: 'emails', icon: EnvelopeIcon },
   { name: 'Clients', href: '/dashboard/clients', view: 'clients', icon: UserGroupIcon },
+  { name: 'Templates', href: '/dashboard/templates', view: 'templates', icon: DocumentTextIcon },
   { name: 'Outreach', href: '/dashboard/outreach', view: 'outreach', icon: MegaphoneIcon },
   { name: 'Mailbox', href: '/dashboard/mailbox', view: 'mailbox', icon: InboxIcon },
   { name: 'Settings', href: '/dashboard/settings', view: 'settings', icon: CogIcon },

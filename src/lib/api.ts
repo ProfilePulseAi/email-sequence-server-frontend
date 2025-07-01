@@ -388,6 +388,40 @@ class ApiService {
     return response.data;
   }
 
+  // Templates
+  async getTemplates() {
+    return this.request({ method: 'GET', url: '/templates' });
+  }
+
+  async getTemplate(id: number) {
+    return this.request({ method: 'GET', url: `/templates/${id}` });
+  }
+
+  async getTemplateContent(id: number) {
+    return this.request({ method: 'GET', url: `/templates/${id}/content` });
+  }
+
+  async createTemplate(data: { name: string; description?: string; htmlContent: string }) {
+    return this.request({ method: 'POST', url: '/templates', data });
+  }
+
+  async updateTemplate(id: number, data: { name?: string; description?: string; isActive?: boolean }) {
+    return this.request({ method: 'PUT', url: `/templates/${id}`, data });
+  }
+
+  async deleteTemplate(id: number) {
+    return this.request({ method: 'DELETE', url: `/templates/${id}` });
+  }
+
+  async uploadTemplate(formData: FormData) {
+    return this.request({ 
+      method: 'POST', 
+      url: '/templates/upload', 
+      data: formData,
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+
   // Generic request method
   async request<T = any>(config: AxiosRequestConfig): Promise<T> {
     const response = await this.api.request(config);
