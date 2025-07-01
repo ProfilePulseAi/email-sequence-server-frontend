@@ -269,11 +269,12 @@ export default function MailboxView() {
                         <div>
                           <p><span className="font-medium">SMTP:</span> {mailbox.smtpConfig.host}:{mailbox.smtpConfig.port}</p>
                         </div>
-                        <div>
-                          <p><span className="font-medium">IMAP:</span> {mailbox.imapConfig.host}:{mailbox.imapConfig.port}</p>
-                        </div>
+                        {
+                        mailbox?.imapConfig?.host ? <div>
+                          <p><span className="font-medium">IMAP:</span> {mailbox?.imapConfig?.host}:{mailbox?.imapConfig?.port}</p>
+                        </div> : null}
                       </div>
-                      <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-500">
+                      <div className="mt-2 grid grid-cols-2 md:grid-cols-6 gap-2 text-xs text-gray-500">
                         <div>
                           <span className="font-medium">Sent:</span> {mailbox.sentEmails}
                         </div>
@@ -281,8 +282,12 @@ export default function MailboxView() {
                           <span className="font-medium">Failed:</span> {mailbox.failedEmails}
                         </div>
                         <div>
+                          <span className="font-medium">Max/10min:</span> {mailbox.mailsPer10Mins}
+                        </div>
+                        <div>
                           <span className="font-medium">Max/Day:</span> {mailbox.maxEmailsPerDay}
                         </div>
+                        
                         <div>
                           <span className="font-medium">Probability:</span> {mailbox.sendingProbability}%
                         </div>

@@ -50,7 +50,6 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
         },
       },
       shouldCheckReplies: false,
-      sentEmails: 0,
       failedEmails: 0,
       sendingProbability: 100,
       replyTo: '',
@@ -90,12 +89,12 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
         sentEmails: 0,
         failedEmails: 0,
         sendingProbability: 100,
-        replyTo: emailId || '',
+        replyTo: '',
         maxEmailsPerDay: 300,
         mailsPer10Mins: 2,
       });
     }
-  }, [mailbox, isOpen, reset, emailId]);
+  }, [mailbox, isOpen, reset]);
 
   // Auto-fill SMTP/IMAP settings based on email provider
   const getProviderSettings = (provider: string) => {
@@ -122,7 +121,12 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
   const onSubmit = async (data: MailBox) => {
     try {
       setIsSubmitting(true);
-      
+      delete data.sentEmails;
+      delete data.failedEmails;
+      if(!mailbox?.imapConfig?.host) {
+        delete data.imapConfig;
+      }
+
       if (isEditing && mailbox?.id) {
         await apiService.updateMailbox(mailbox.id, data);
         toast.success('Mailbox updated successfully');
@@ -162,7 +166,19 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
         setValue('smtpConfig.auth.user', emailId);
         setValue('imapConfig.auth.user', emailId);
         
+        // Auto-fill replyTo with the same email address if it's empty
+        const currentReplyTo = watch('replyTo');
+        if (!currentReplyTo) {
+          setValue('replyTo', emailId);
+        }
+        
         toast.success(`Auto-filled settings for ${emailProvider}`);
+      }
+    } else if (emailId) {
+      // Even if no provider settings found, still set replyTo if empty
+      const currentReplyTo = watch('replyTo');
+      if (!currentReplyTo) {
+        setValue('replyTo', emailId);
       }
     }
   };

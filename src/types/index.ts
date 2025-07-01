@@ -103,10 +103,10 @@ export interface MailBox {
   emailId: string;
   name: string;
   smtpConfig: SmtpConfig;
-  imapConfig: ImapConfig;
+  imapConfig?: ImapConfig;
   shouldCheckReplies: boolean;
-  sentEmails: number;
-  failedEmails: number;
+  sentEmails?: number;
+  failedEmails?: number;
   sendingProbability: number;
   replyTo: string;
   maxEmailsPerDay: number;
