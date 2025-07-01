@@ -32,6 +32,7 @@ interface OutreachFlowBuilderProps {
   templates?: Template[];
   onSave?: (outreach: OutreachDto) => void;
   onCancel?: () => void;
+  onChange?: (outreach: OutreachDto) => void;
 }
 
 const nodeTypes: NodeTypes = {
@@ -179,6 +180,7 @@ export default function OutreachFlowBuilder({
   templates = [],
   onSave,
   onCancel,
+  onChange,
 }: OutreachFlowBuilderProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -194,6 +196,18 @@ export default function OutreachFlowBuilder({
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
   }, []);
+
+  const getWaitDaysForEmailNode = useCallback((emailNodeId: string): number => {
+    // Find wait nodes connected to this email node
+    const waitEdge = edges.find(edge => edge.target === emailNodeId);
+    if (waitEdge) {
+      const waitNode = nodes.find(node => node.id === waitEdge.source);
+      if (waitNode && waitNode.type === 'wait') {
+        return waitNode.data.waitDays || 1;
+      }
+    }
+    return 1; // default
+  }, [edges, nodes]);
 
   const addNewNode = useCallback((nodeType: string) => {
     const newNode: Node = {
@@ -216,14 +230,49 @@ export default function OutreachFlowBuilder({
   }, [setNodes, templates]);
 
   const updateNodeData = useCallback((nodeId: string, newData: Partial<any>) => {
-    setNodes((nds) =>
-      nds.map((node) =>
+    // Update nodes state
+    setNodes((nds) => {
+      const updatedNodes = nds.map((node) =>
         node.id === nodeId
           ? { ...node, data: { ...node.data, ...newData } }
           : node
-      )
-    );
-  }, [setNodes]);
+      );
+      
+      // Trigger onChange immediately with updated nodes
+      if (onChange) {
+        setTimeout(() => {
+          const stateList = updatedNodes
+            .filter(node => node.type === 'emailSent')
+            .map((node, index) => ({
+              name: `state_${index + 1}`,
+              scheduleAfterDays: getWaitDaysForEmailNode(node.id),
+              description: node.data.description || node.data.label,
+              templateId: node.data.templateId || '1',
+            }));
+
+          const outreachData = {
+            id: outreach?.id,
+            name: outreachName,
+            subject: outreachSubject,
+            stateList,
+            userId: outreach?.userId,
+            isActive: outreach?.isActive ?? true,
+          };
+          onChange(outreachData);
+        }, 100); // Small delay to ensure state is updated
+      }
+      
+      return updatedNodes;
+    });
+    
+    // Update selected node if it's the one being updated
+    setSelectedNode((current) => {
+      if (current && current.id === nodeId) {
+        return { ...current, data: { ...current.data, ...newData } };
+      }
+      return current;
+    });
+  }, [setNodes, setSelectedNode, onChange, edges, outreachName, outreachSubject, outreach, getWaitDaysForEmailNode]);
 
   const deleteNode = useCallback((nodeId: string) => {
     setNodes((nds) => nds.filter((node) => node.id !== nodeId));
@@ -250,19 +299,7 @@ export default function OutreachFlowBuilder({
       userId: outreach?.userId,
       isActive: outreach?.isActive ?? true,
     };
-  }, [nodes, edges, outreachName, outreachSubject, outreach]);
-
-  const getWaitDaysForEmailNode = (emailNodeId: string): number => {
-    // Find wait nodes connected to this email node
-    const waitEdge = edges.find(edge => edge.target === emailNodeId);
-    if (waitEdge) {
-      const waitNode = nodes.find(node => node.id === waitEdge.source);
-      if (waitNode && waitNode.type === 'wait') {
-        return waitNode.data.waitDays || 1;
-      }
-    }
-    return 1; // default
-  };
+  }, [nodes, edges, outreachName, outreachSubject, outreach, getWaitDaysForEmailNode]);
 
   const handleSave = () => {
     if (!outreachName.trim() || !outreachSubject.trim()) {
@@ -291,45 +328,55 @@ export default function OutreachFlowBuilder({
     <div className="w-full h-screen flex flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex-1 mr-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Outreach Name *
-                </label>
-                <input
-                  type="text"
-                  value={outreachName}
-                  onChange={(e) => setOutreachName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter outreach campaign name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Subject *
-                </label>
-                <input
-                  type="text"
-                  value={outreachSubject}
-                  onChange={(e) => setOutreachSubject(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter email subject line"
-                />
-              </div>
-            </div>
+        <div className="flex items-end gap-4">
+          <div className="flex-none w-80">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Outreach Name *
+            </label>
+            <input
+              type="text"
+              value={outreachName}
+              onChange={(e) => {
+                setOutreachName(e.target.value);
+                if (onChange) {
+                  const outreachData = convertFlowToOutreach();
+                  outreachData.name = e.target.value;
+                  onChange(outreachData);
+                }
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter campaign name"
+            />
           </div>
-          <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email Subject *
+            </label>
+            <input
+              type="text"
+              value={outreachSubject}
+              onChange={(e) => {
+                setOutreachSubject(e.target.value);
+                if (onChange) {
+                  const outreachData = convertFlowToOutreach();
+                  outreachData.subject = e.target.value;
+                  onChange(outreachData);
+                }
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter email subject line"
+            />
+          </div>
+          <div className="flex gap-3 flex-none">
             <button
               onClick={onCancel}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="px-6 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Save Flow
             </button>
@@ -419,12 +466,22 @@ export default function OutreachFlowBuilder({
                       onChange={(e) => updateNodeData(selectedNode.id, { templateId: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      {templates.map((template) => (
-                        <option key={template.id} value={template.id.toString()}>
-                          {template.name}
-                        </option>
-                      ))}
+                      <option value="">Select a template</option>
+                      {templates && templates.length > 0 ? (
+                        templates.map((template) => (
+                          <option key={template.id} value={template.id.toString()}>
+                            {template.name}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled>No templates available</option>
+                      )}
                     </select>
+                    {(!templates || templates.length === 0) && (
+                      <p className="text-sm text-orange-600 mt-1">
+                        No templates found. Please create templates first.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">

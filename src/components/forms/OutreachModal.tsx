@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiService } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import Modal from '@/components/ui/Modal';
 import OutreachForm from './OutreachForm';
-import OutreachFlowBuilder from '@/components/outreach/OutreachFlowBuilder';
 import { OutreachDto, Template } from '@/types';
 
 interface OutreachModalProps {
@@ -16,6 +16,7 @@ interface OutreachModalProps {
 }
 
 export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: OutreachModalProps) {
+  const router = useRouter();
   const [showFlowBuilder, setShowFlowBuilder] = useState(false);
   const [showSimpleForm, setShowSimpleForm] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -67,8 +68,22 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
   };
 
   const handleUseFlowBuilder = () => {
-    setShowFlowBuilder(true);
-    setShowSimpleForm(false);
+    // Save current data to localStorage if editing
+    if (outreach) {
+      const key = `outreach_draft_${outreach.id}`;
+      localStorage.setItem(key, JSON.stringify(outreach));
+      router.push(`/dashboard/outreach/flow?id=${outreach.id}`);
+    } else {
+      // For new outreach, save any existing data
+      const draftData = {
+        name: '',
+        subject: '',
+        stateList: [],
+      };
+      localStorage.setItem('outreach_draft_new', JSON.stringify(draftData));
+      router.push('/dashboard/outreach/flow');
+    }
+    onClose();
   };
 
   const handleUseSimpleForm = () => {
@@ -77,16 +92,8 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
   };
 
   if (showFlowBuilder) {
-    return (
-      <div className="fixed inset-0 z-50 bg-white">
-        <OutreachFlowBuilder
-          outreach={outreach}
-          templates={templates}
-          onSave={handleSaveOutreach}
-          onCancel={() => setShowFlowBuilder(false)}
-        />
-      </div>
-    );
+    // This should not happen anymore since we navigate to a separate page
+    return null;
   }
 
   // Simple form mode
