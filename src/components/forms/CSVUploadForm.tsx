@@ -239,23 +239,54 @@ const CSVUploadForm: React.FC<CSVUploadFormProps> = ({
 
       {/* Validation Result */}
       {validationResult && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-yellow-800 mb-2">Validation Result</h3>
-          <div className="text-sm text-yellow-700 space-y-1">
-            <p>Valid rows: {validationResult.validRows || 0}</p>
-            <p>Invalid rows: {validationResult.invalidRows || 0}</p>
-            {validationResult.errors && validationResult.errors.length > 0 && (
-              <div className="mt-2">
-                <p className="font-medium">Errors:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  {validationResult.errors.slice(0, 5).map((error: string, index: number) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                  {validationResult.errors.length > 5 && (
-                    <li>... and {validationResult.errors.length - 5} more errors</li>
-                  )}
-                </ul>
+        <div className={`border rounded-lg p-4 ${
+          validationResult.failed === 0 && validationResult.errors?.length === 0 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          <h3 className={`text-sm font-medium mb-3 ${
+            validationResult.failed === 0 && validationResult.errors?.length === 0 
+              ? 'text-green-800' 
+              : 'text-yellow-800'
+          }`}>
+            Validation Result
+          </h3>
+          
+          <div className={`text-sm space-y-2 ${
+            validationResult.failed === 0 && validationResult.errors?.length === 0 
+              ? 'text-green-700' 
+              : 'text-yellow-700'
+          }`}>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p><span className="font-medium">Total processed:</span> {validationResult.processed || 0}</p>
+                <p><span className="font-medium">Successful:</span> {validationResult.successful || 0}</p>
+                <p><span className="font-medium">Failed:</span> {validationResult.failed || 0}</p>
               </div>
+              <div>
+                <p><span className="font-medium">Duplicates:</span> {validationResult.duplicates || 0}</p>
+                <p><span className="font-medium">Updated:</span> {validationResult.updated || 0}</p>
+              </div>
+            </div>
+            
+            {validationResult.failed === 0 && validationResult.errors?.length === 0 ? (
+              <div className="mt-3 p-2 bg-green-100 rounded border border-green-300">
+                <p className="font-medium text-green-800">✅ Validation passed! Your file is ready to upload.</p>
+              </div>
+            ) : (
+              validationResult.errors && validationResult.errors.length > 0 && (
+                <div className="mt-3">
+                  <p className="font-medium">Errors found:</p>
+                  <ul className="list-disc list-inside space-y-1 mt-1 pl-2">
+                    {validationResult.errors.slice(0, 5).map((error: string, index: number) => (
+                      <li key={index} className="text-xs">{error}</li>
+                    ))}
+                    {validationResult.errors.length > 5 && (
+                      <li className="text-xs font-medium">... and {validationResult.errors.length - 5} more errors</li>
+                    )}
+                  </ul>
+                </div>
+              )
             )}
           </div>
         </div>
@@ -278,12 +309,18 @@ const CSVUploadForm: React.FC<CSVUploadFormProps> = ({
         <button
           onClick={handleUpload}
           disabled={!file || isUploading}
-          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+          className={`flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center ${
+            validationResult?.failed === 0 && validationResult?.errors?.length === 0
+              ? 'bg-green-600 hover:bg-green-700 ring-2 ring-green-300'
+              : 'bg-blue-600 hover:bg-blue-700'
+          }`}
         >
           {isUploading ? (
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
           ) : (
-            'Upload Clients'
+            validationResult?.failed === 0 && validationResult?.errors?.length === 0
+              ? '✅ Upload Clients'
+              : 'Upload Clients'
           )}
         </button>
       </div>

@@ -363,6 +363,16 @@ class ApiService {
     return response.data;
   }
 
+  async updateMailbox(id: number, mailboxData: any) {
+    const response = await this.api.put(`/mailbox/${id}`, mailboxData);
+    return response.data;
+  }
+
+  async deleteMailbox(id: number) {
+    const response = await this.api.delete(`/mailbox/${id}`);
+    return response.data;
+  }
+
   // Generic request method
   async request<T = any>(config: AxiosRequestConfig): Promise<T> {
     const response = await this.api.request(config);

@@ -78,18 +78,42 @@ export interface Outreach {
   updatedAt: Date;
 }
 
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: {
+    user: string;
+    pass: string;
+  };
+}
+
+export interface ImapConfig {
+  host: string;
+  port: number;
+  auth: {
+    user: string;
+    pass: string;
+  };
+}
+
 export interface MailBox {
   id: number;
-  userId: number;
-  email: string;
-  password: string;
-  smtpHost: string;
-  smtpPort: number;
-  imapHost: string;
-  imapPort: number;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  userId?: number;
+  emailId: string;
+  name: string;
+  smtpConfig: SmtpConfig;
+  imapConfig: ImapConfig;
+  shouldCheckReplies: boolean;
+  sentEmails: number;
+  failedEmails: number;
+  sendingProbability: number;
+  replyTo: string;
+  maxEmailsPerDay: number;
+  scheduledCount?: number;
+  mailsPer10Mins?: number;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
 }
 
 export interface EmailTemplate {
