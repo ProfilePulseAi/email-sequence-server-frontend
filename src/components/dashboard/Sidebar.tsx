@@ -27,7 +27,7 @@ const navigation = [
   { name: 'Templates', href: '/dashboard/templates', view: 'templates', icon: DocumentTextIcon },
   { name: 'Outreach', href: '/dashboard/outreach', view: 'outreach', icon: MegaphoneIcon },
   { name: 'Mailbox', href: '/dashboard/mailbox', view: 'mailbox', icon: InboxIcon },
-  { name: 'Settings', href: '/dashboard/settings', view: 'settings', icon: CogIcon },
+  { name: 'Settings', href: '/dashboard/settings/profile', view: 'settings', icon: CogIcon },
 ];
 
 export default function Sidebar({ currentView, isOpen, setIsOpen }: SidebarProps) {
