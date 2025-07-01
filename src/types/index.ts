@@ -138,3 +138,37 @@ export interface DashboardStats {
   openRate: number;
   replyRate: number;
 }
+
+export interface CSVUploadResult {
+  processed: number;
+  successful: number;
+  failed: number;
+  errors?: string[];
+  duplicates?: number;
+  updated?: number;
+}
+
+export interface CSVUploadOptions {
+  skipDuplicates?: boolean;
+  updateExisting?: boolean;
+  validateOnly?: boolean;
+}
+
+export interface CSVValidationResult {
+  valid: boolean;
+  validRows: number;
+  invalidRows: number;
+  errors: string[];
+  warnings?: string[];
+}
+
+export interface CSVUploadHistory {
+  id: number;
+  filename: string;
+  uploadedAt: string;
+  totalRows: number;
+  successfulRows: number;
+  failedRows: number;
+  status: 'completed' | 'failed' | 'processing';
+  errorDetails?: string;
+}

@@ -223,6 +223,68 @@ class ApiService {
     return response.data;
   }
 
+  // CSV Upload endpoints for bulk client creation
+  async uploadClientsCSV(file: File, options?: { 
+    skipDuplicates?: boolean; 
+    updateExisting?: boolean;
+    validateOnly?: boolean;
+  }) {
+    // Validate file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+      throw new Error('File size exceeds 10MB limit');
+    }
+
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      throw new Error('Only CSV files are allowed');
+    }
+
+    const formData = new FormData();
+    formData.append('csv_file', file);
+    
+    // Add options as JSON string if provided
+    if (options) {
+      formData.append('options', JSON.stringify(options));
+    }
+
+    const response = await this.api.post('/clients/upload-csv', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 60000, // Extended timeout for large file processing
+    });
+    return response.data;
+  }
+
+  async validateClientsCSV(file: File) {
+    return this.uploadClientsCSV(file, { validateOnly: true });
+  }
+
+  async downloadClientsCSVTemplate() {
+    const response = await this.api.get('/clients/csv-template', {
+      responseType: 'blob',
+    });
+    
+    // Create a download link for the template
+    const blob = new Blob([response.data], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'clients_template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    return response.data;
+  }
+
+  async getCSVUploadHistory() {
+    const response = await this.api.get('/clients/upload-history');
+    return response.data;
+  }
+
   // Email endpoints
   async getEmails() {
     const response = await this.api.get('/email');
