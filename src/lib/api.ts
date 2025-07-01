@@ -431,3 +431,8 @@ class ApiService {
 
 export const apiService = new ApiService();
 export default apiService;
+
+// Individual function exports for convenience
+export const getOutreaches = () => apiService.getOutreaches();
+export const createOutreach = (outreachData: any) => apiService.createOutreach(outreachData);
+export const updateOutreach = (id: number, outreachData: any) => apiService.updateOutreach(id, outreachData);

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { apiService } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
-import OutreachForm from '@/components/forms/OutreachForm';
+import OutreachModal from '@/components/forms/OutreachModal';
+import { OutreachDto } from '@/types';
 import { 
   MegaphoneIcon,
   PlusIcon,
@@ -28,7 +29,7 @@ export default function OutreachView() {
   const [outreaches, setOutreaches] = useState<Outreach[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingOutreach, setEditingOutreach] = useState<Outreach | null>(null);
+  const [editingOutreach, setEditingOutreach] = useState<OutreachDto | null>(null);
 
   useEffect(() => {
     fetchOutreaches();
@@ -208,7 +209,16 @@ export default function OutreachView() {
                           )}
                         </button>
                         <button
-                          onClick={() => setEditingOutreach(outreach)}
+                          onClick={() => {
+                            const outreachDto: OutreachDto = {
+                              id: outreach.id,
+                              name: outreach.name,
+                              stateList: [],
+                              subject: '',
+                              isActive: outreach.isActive
+                            };
+                            setEditingOutreach(outreachDto);
+                          }}
                           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
                           title="Edit campaign"
                         >
@@ -235,8 +245,8 @@ export default function OutreachView() {
         )}
       </div>
 
-      {/* Outreach Form Modal */}
-      <OutreachForm
+      {/* Outreach Modal */}
+      <OutreachModal
         outreach={editingOutreach || undefined}
         isOpen={showCreateModal || !!editingOutreach}
         onClose={() => {

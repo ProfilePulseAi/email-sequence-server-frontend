@@ -74,6 +74,8 @@ export interface Outreach {
   description?: string;
   isActive: boolean;
   templates?: EmailTemplate[];
+  stateList?: State[];
+  subject?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -221,4 +223,60 @@ export interface CSVUploadHistory {
   failedRows: number;
   status: 'completed' | 'failed' | 'processing';
   errorDetails?: string;
+}
+
+// Outreach State Types
+export interface State {
+  name: string;
+  scheduleAfterDays: number;
+  description: string;
+  templateId: string;
+}
+
+export interface OutreachState {
+  name: string;
+  scheduleAfterDays: number;
+  description: string;
+  templateId: string;
+}
+
+export interface OutreachDto {
+  id?: number;
+  name: string;
+  userId?: number;
+  stateList: OutreachState[];
+  subject: string;
+  isActive?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+// ReactFlow Node Types
+export interface FlowNodeData {
+  label: string;
+  type: 'email' | 'wait' | 'condition' | 'linkClick' | 'reply' | 'start' | 'end';
+  templateId?: string;
+  waitDays?: number;
+  condition?: string;
+  description?: string;
+}
+
+export interface FlowNode {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  data: FlowNodeData;
+}
+
+export interface FlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  type?: string;
+}
+
+export interface OutreachFlow {
+  nodes: FlowNode[];
+  edges: FlowEdge[];
 }

@@ -1,238 +1,239 @@
 'use client';
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { apiService } from '@/lib/api';
-import { toast } from 'react-hot-toast';
-import Modal from '@/components/ui/Modal';
-
-interface Outreach {
-  id?: number;
-  name: string;
-  description?: string;
-  targetAudience?: string;
-  status?: 'draft' | 'active' | 'paused' | 'completed';
-  startDate?: string;
-  endDate?: string;
-  emailTemplate?: string;
-  subjectLine?: string;
-  tags?: string;
-}
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { createOutreach, updateOutreach } from '@/lib/api';
+import { OutreachDto, State } from '@/types';
 
 interface OutreachFormProps {
-  outreach?: Outreach;
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
+  outreach?: OutreachDto;
+  onSuccess?: () => void;
 }
 
-export default function OutreachForm({ outreach, isOpen, onClose, onSuccess }: OutreachFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const isEditing = !!outreach?.id;
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<Outreach>({
-    defaultValues: outreach || {
-      name: '',
-      description: '',
-      targetAudience: '',
-      status: 'draft',
-      startDate: '',
-      endDate: '',
-      emailTemplate: '',
-      subjectLine: '',
-      tags: '',
-    },
+export default function OutreachForm({ outreach, onSuccess }: OutreachFormProps) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    subject: '',
   });
+  const [stateList, setStateList] = useState<State[]>([
+    {
+      name: 'initial',
+      scheduleAfterDays: 0,
+      description: 'Initial email',
+      templateId: '1'
+    }
+  ]);
 
-  const onSubmit = async (data: Outreach) => {
+  useEffect(() => {
+    if (outreach) {
+      setFormData({
+        name: outreach.name,
+        subject: outreach.subject,
+      });
+      setStateList(outreach.stateList || stateList);
+    }
+  }, [outreach]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
     try {
-      setIsSubmitting(true);
-      
-      if (isEditing && outreach?.id) {
-        await apiService.updateOutreach(outreach.id, data);
-        toast.success('Outreach campaign updated successfully');
+      const outreachDataToSave = {
+        name: formData.name,
+        subject: formData.subject,
+        stateList: stateList,
+      };
+
+      if (outreach?.id) {
+        await updateOutreach(outreach.id, outreachDataToSave);
       } else {
-        await apiService.createOutreach(data);
-        toast.success('Outreach campaign created successfully');
+        await createOutreach(outreachDataToSave);
       }
-      
-      onSuccess();
-      onClose();
-      reset();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} outreach campaign`);
+
+      onSuccess?.();
+      router.push('/dashboard/outreach');
+    } catch (error) {
+      console.error('Error saving outreach:', error);
+      alert('Error saving outreach campaign. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const handleClose = () => {
-    onClose();
-    reset();
+  const addState = () => {
+    setStateList([...stateList, {
+      name: `stage_${stateList.length + 1}`,
+      scheduleAfterDays: 3,
+      description: '',
+      templateId: '1'
+    }]);
+  };
+
+  const removeState = (index: number) => {
+    if (stateList.length > 1) {
+      setStateList(stateList.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateState = (index: number, field: string, value: any) => {
+    const newStateList = [...stateList];
+    newStateList[index] = { ...newStateList[index], [field]: value };
+    setStateList(newStateList);
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={isEditing ? 'Edit Outreach Campaign' : 'Create New Outreach Campaign'}
-      size="lg"
-    >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <div className="bg-white border border-gray-200 rounded-lg p-6 w-full">
+      <form onSubmit={handleSubmit} className="space-y-6 w-full">
         {/* Basic Information */}
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-            Campaign Name *
-          </label>
-          <input
-            type="text"
-            id="name"
-            {...register('name', { required: 'Campaign name is required' })}
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="e.g., Software Engineer Outreach Q1"
-          />
-          {errors.name && (
-            <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-            Description
-          </label>
-          <textarea
-            id="description"
-            rows={3}
-            {...register('description')}
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="Describe the purpose and goals of this outreach campaign..."
-          />
-        </div>
-
-        <div>
-          <label htmlFor="targetAudience" className="block text-sm font-medium text-gray-700">
-            Target Audience
-          </label>
-          <input
-            type="text"
-            id="targetAudience"
-            {...register('targetAudience')}
-            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="e.g., Senior Software Engineers at startups"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-              Status
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+              Campaign Name *
             </label>
-            <select
-              id="status"
-              {...register('status')}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            <input
+              type="text"
+              id="name"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter campaign name"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+              Email Subject *
+            </label>
+            <input
+              type="text"
+              id="subject"
+              value={formData.subject}
+              onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter email subject"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Email Sequence */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Email Sequence *
+            </label>
+            <button
+              type="button"
+              onClick={addState}
+              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="completed">Completed</option>
-            </select>
+              + Add Stage
+            </button>
           </div>
-
-          <div>
-            <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
-              Tags
-            </label>
-            <input
-              type="text"
-              id="tags"
-              {...register('tags')}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder="e.g., software, tech, hiring"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
-              Start Date
-            </label>
-            <input
-              type="date"
-              id="startDate"
-              {...register('startDate')}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
-              End Date
-            </label>
-            <input
-              type="date"
-              id="endDate"
-              {...register('endDate')}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            />
-          </div>
-        </div>
-
-        {/* Email Content */}
-        <div className="border-t pt-4">
-          <h4 className="text-md font-medium text-gray-900 mb-3">Email Content</h4>
           
-          <div>
-            <label htmlFor="subjectLine" className="block text-sm font-medium text-gray-700">
-              Subject Line
-            </label>
-            <input
-              type="text"
-              id="subjectLine"
-              {...register('subjectLine')}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder="e.g., Exciting opportunity for talented developers"
-            />
-          </div>
-
-          <div className="mt-4">
-            <label htmlFor="emailTemplate" className="block text-sm font-medium text-gray-700">
-              Email Template
-            </label>
-            <textarea
-              id="emailTemplate"
-              rows={6}
-              {...register('emailTemplate')}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder="Write your email template here. You can use variables like {{firstName}}, {{company}}, etc."
-            />
-          </div>
+          {stateList.map((state, index) => (
+            <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-gray-900">Stage {index + 1}</h4>
+                {stateList.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeState(index)}
+                    className="text-red-600 hover:text-red-700 text-sm"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Stage Name
+                  </label>
+                  <input
+                    type="text"
+                    value={state.name}
+                    onChange={(e) => updateState(index, 'name', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    placeholder="Stage name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Days After Previous
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={state.scheduleAfterDays}
+                    onChange={(e) => updateState(index, 'scheduleAfterDays', parseInt(e.target.value))}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Template ID
+                  </label>
+                  <input
+                    type="text"
+                    value={state.templateId}
+                    onChange={(e) => updateState(index, 'templateId', e.target.value)}
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                    placeholder="Template ID"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={state.description}
+                  onChange={(e) => updateState(index, 'description', e.target.value)}
+                  rows={2}
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  placeholder="Stage description"
+                />
+              </div>
+            </div>
+          ))}
+          
+          <p className="text-sm text-gray-500">
+            Create a sequence of emails that will be sent to your contacts. Each stage can have a different template and timing.
+          </p>
         </div>
 
         {/* Form Actions */}
-        <div className="flex justify-end space-x-3 pt-4 border-t">
+        <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
           <button
             type="button"
-            onClick={handleClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            onClick={() => router.push('/dashboard/outreach')}
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+            disabled={loading}
           >
             Cancel
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || stateList.length === 0}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {isSubmitting ? 'Saving...' : isEditing ? 'Update Campaign' : 'Create Campaign'}
+            {loading && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            )}
+            {outreach ? 'Update Campaign' : 'Create Campaign'}
           </button>
         </div>
       </form>
-    </Modal>
+    </div>
   );
 }
