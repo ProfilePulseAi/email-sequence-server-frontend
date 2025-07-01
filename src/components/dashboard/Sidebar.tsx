@@ -43,7 +43,7 @@ export default function Sidebar({ currentView, isOpen, setIsOpen }: SidebarProps
       {isOpen && (
         <div className="fixed inset-0 flex z-40 md:hidden" role="dialog" aria-modal="true">
           <div className="fixed inset-0 bg-gray-600 bg-opacity-75" aria-hidden="true" onClick={() => setIsOpen(false)}></div>
-          <div className="relative flex-1 flex flex-col max-w-xs w-full pt-5 pb-4 bg-white">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white h-full">
             <div className="absolute top-0 right-0 -mr-12 pt-2">
               <button
                 type="button"
@@ -54,10 +54,10 @@ export default function Sidebar({ currentView, isOpen, setIsOpen }: SidebarProps
                 <XMarkIcon className="h-6 w-6 text-white" aria-hidden="true" />
               </button>
             </div>
-            <div className="flex-shrink-0 flex items-center px-4">
+            <div className="flex-shrink-0 flex items-center px-4 h-16 border-b border-gray-200">
               <h1 className="text-xl font-bold text-gray-900">Email Dashboard</h1>
             </div>
-            <nav className="mt-5 flex-shrink-0 h-full divide-y divide-gray-200 overflow-y-auto">
+            <nav className="mt-5 flex-1 overflow-y-auto">
               <div className="px-2 space-y-1">
                 {navigation.map((item) => (
                   <button
@@ -86,7 +86,7 @@ export default function Sidebar({ currentView, isOpen, setIsOpen }: SidebarProps
 
       {/* Desktop sidebar */}
       <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
-        <div className="flex flex-col min-h-0 border-r border-gray-200 bg-white">
+        <div className="flex flex-col h-full border-r border-gray-200 bg-white">
           <div className="flex items-center h-16 flex-shrink-0 px-4 bg-white border-b border-gray-200">
             <h1 className="text-xl font-bold text-gray-900">Email Dashboard</h1>
           </div>
