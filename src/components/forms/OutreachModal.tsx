@@ -17,6 +17,7 @@ interface OutreachModalProps {
 
 export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: OutreachModalProps) {
   const [showFlowBuilder, setShowFlowBuilder] = useState(false);
+  const [showSimpleForm, setShowSimpleForm] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -51,6 +52,7 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
       onSuccess();
       onClose();
       setShowFlowBuilder(false);
+      setShowSimpleForm(false);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to save outreach campaign');
     } finally {
@@ -61,15 +63,17 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
   const handleClose = () => {
     onClose();
     setShowFlowBuilder(false);
+    setShowSimpleForm(false);
   };
 
   const handleUseFlowBuilder = () => {
     setShowFlowBuilder(true);
+    setShowSimpleForm(false);
   };
 
   const handleUseSimpleForm = () => {
-    // Just close the modal for now since we'll use the simple form
     setShowFlowBuilder(false);
+    setShowSimpleForm(true);
   };
 
   if (showFlowBuilder) {
@@ -85,7 +89,28 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
     );
   }
 
-  if (!showFlowBuilder && isOpen) {
+  // Simple form mode
+  if (showSimpleForm) {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={handleClose}
+        title={outreach ? 'Edit Outreach Campaign' : 'Create New Outreach Campaign'}
+        size="xl"
+      >
+        <OutreachForm
+          outreach={outreach}
+          onSuccess={() => {
+            onSuccess();
+            onClose();
+          }}
+        />
+      </Modal>
+    );
+  }
+
+  // Selection mode - show options
+  if (!showFlowBuilder && !showSimpleForm && isOpen) {
     return (
       <Modal
         isOpen={isOpen}
@@ -142,21 +167,5 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
     );
   }
 
-  // Simple form mode
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={outreach ? 'Edit Outreach Campaign' : 'Create New Outreach Campaign'}
-      size="xl"
-    >
-      <OutreachForm
-        outreach={outreach}
-        onSuccess={() => {
-          onSuccess();
-          onClose();
-        }}
-      />
-    </Modal>
-  );
+  return null;
 }
