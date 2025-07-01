@@ -349,7 +349,7 @@ class ApiService {
 
   // Mailbox endpoints
   async getMailboxes() {
-    const response = await this.api.get('/mailbox/user');
+    const response = await this.api.get('/mailbox');
     return response.data;
   }
 
