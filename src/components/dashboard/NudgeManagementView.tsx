@@ -60,46 +60,7 @@ export default function NudgeManagementView() {
       
       // Mock data for now
       setServiceConfigs([
-        {
-          id: 1,
-          name: 'Main Jira Instance',
-          platform: 'jira',
-          isActive: true,
-          userId: 1,
-          description: 'Primary Jira for project management',
-          createdAt: '2024-01-15T10:00:00Z',
-          updatedAt: '2024-01-15T10:00:00Z'
-        },
-        {
-          id: 2,
-          name: 'GitHub Integration',
-          platform: 'github',
-          isActive: false,
-          userId: 1,
-          description: 'Repository notifications',
-          createdAt: '2024-01-20T14:30:00Z',
-          updatedAt: '2024-01-20T14:30:00Z'
-        },
-        {
-          id: 3,
-          name: 'Team Slack Workspace',
-          platform: 'slack',
-          isActive: true,
-          userId: 1,
-          description: 'Notifications to team channels',
-          createdAt: '2024-01-25T09:15:00Z',
-          updatedAt: '2024-01-25T09:15:00Z'
-        },
-        {
-          id: 4,
-          name: 'Development Discord',
-          platform: 'discord',
-          isActive: true,
-          userId: 1,
-          description: 'Dev team coordination and alerts',
-          createdAt: '2024-01-28T16:45:00Z',
-          updatedAt: '2024-01-28T16:45:00Z'
-        }
+        
       ]);
     } catch (error) {
       console.error('Error fetching service configs:', error);
