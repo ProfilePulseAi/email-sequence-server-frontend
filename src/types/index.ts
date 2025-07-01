@@ -280,3 +280,71 @@ export interface OutreachFlow {
   nodes: FlowNode[];
   edges: FlowEdge[];
 }
+
+// Service Configuration Types
+export type Platform = 'jira' | 'linear' | 'trello' | 'github' | 'clickup' | 'slack' | 'discord';
+
+export interface ServiceConfig {
+  id: number;
+  name: string;
+  platform: Platform;
+  isActive: boolean;
+  userId: number;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateServiceConfigDto {
+  name: string;
+  platform: Platform;
+  credentials: Record<string, any>;
+  description?: string;
+}
+
+export interface UpdateServiceConfigDto {
+  name?: string;
+  credentials?: Record<string, any>;
+  isActive?: boolean;
+  description?: string;
+}
+
+export interface ServiceCredentials {
+  [key: string]: any;
+  // Platform-specific credentials will be typed based on platform
+}
+
+// Platform-specific credential types
+export interface JiraCredentials {
+  host: string;
+  email: string;
+  token: string;
+}
+
+export interface LinearCredentials {
+  token: string;
+}
+
+export interface TrelloCredentials {
+  key: string;
+  token: string;
+}
+
+export interface GithubCredentials {
+  token: string;
+  owner?: string;
+  repo?: string;
+}
+
+export interface ClickupCredentials {
+  token: string;
+  teamId?: string;
+}
+
+export interface SlackCredentials {
+  webhookUrl: string;
+}
+
+export interface DiscordCredentials {
+  webhookUrl: string;
+}

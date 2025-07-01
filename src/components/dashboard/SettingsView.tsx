@@ -9,8 +9,10 @@ import {
   BellIcon,
   ShieldCheckIcon,
   PaintBrushIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  CogIcon
 } from '@heroicons/react/24/outline';
+import NudgeManagementView from './NudgeManagementView';
 
 export default function SettingsView() {
   const { user, logout } = useAuth();
@@ -20,6 +22,7 @@ export default function SettingsView() {
     { id: 'profile', name: 'Profile', icon: UserIcon },
     { id: 'security', name: 'Security', icon: ShieldCheckIcon },
     { id: 'notifications', name: 'Notifications', icon: BellIcon },
+    { id: 'nudge-management', name: 'Nudge Management', icon: CogIcon },
     { id: 'appearance', name: 'Appearance', icon: PaintBrushIcon },
   ];
 
@@ -167,6 +170,9 @@ export default function SettingsView() {
             </div>
           </div>
         );
+
+      case 'nudge-management':
+        return <NudgeManagementView />;
 
       case 'appearance':
         return (
