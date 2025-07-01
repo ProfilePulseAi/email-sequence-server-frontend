@@ -112,7 +112,7 @@ export interface MailBox {
   maxEmailsPerDay: number;
   scheduledCount?: number;
   mailsPer10Mins?: number;
-  createdAt: Date | string;
+  createdAt?: Date | string;
   updatedAt?: Date | string;
 }
 

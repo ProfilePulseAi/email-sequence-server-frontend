@@ -1,3 +1,4 @@
+import { MailBox } from '@/types';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import Cookies from 'js-cookie';
 import { toast } from 'react-hot-toast';
@@ -363,7 +364,21 @@ class ApiService {
     return response.data;
   }
 
-  async updateMailbox(id: number, mailboxData: any) {
+  async updateMailbox(id: number, mailboxData: MailBox) {
+    // Remove sentEmails from mailboxData if it exists
+    if (mailboxData.sentEmails) {
+      delete mailboxData.sentEmails;
+    }
+    if (mailboxData.createdAt) {
+      delete mailboxData.createdAt;
+    }
+    if (mailboxData.updatedAt) {
+      delete mailboxData.updatedAt;
+    }
+    if (mailboxData.scheduledCount || mailboxData.scheduledCount === 0) {
+      delete mailboxData.scheduledCount;
+    }
+    
     const response = await this.api.put(`/mailbox/${id}`, mailboxData);
     return response.data;
   }

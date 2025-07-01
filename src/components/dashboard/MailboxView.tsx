@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import { MailBox } from '@/types';
 import MailboxForm from '@/components/forms/MailboxForm';
+import Modal from '@/components/ui/Modal';
 import { 
   InboxIcon,
   PlusIcon,
@@ -15,7 +16,8 @@ import {
   EyeSlashIcon,
   PencilIcon,
   TrashIcon,
-  DocumentDuplicateIcon
+  DocumentDuplicateIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
 export default function MailboxView() {
@@ -24,6 +26,10 @@ export default function MailboxView() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMailbox, setEditingMailbox] = useState<MailBox | undefined>(undefined);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ isOpen: boolean; mailbox: MailBox | null }>({
+    isOpen: false,
+    mailbox: null
+  });
 
   useEffect(() => {
     fetchMailboxes();
@@ -52,21 +58,29 @@ export default function MailboxView() {
     setIsFormOpen(true);
   };
 
-  const handleDeleteMailbox = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this email account? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeleteMailbox = (mailbox: MailBox) => {
+    setDeleteConfirmModal({ isOpen: true, mailbox });
+  };
+
+  const confirmDeleteMailbox = async () => {
+    const mailbox = deleteConfirmModal.mailbox;
+    if (!mailbox) return;
 
     try {
-      setDeletingId(id);
-      await apiService.deleteMailbox(id);
+      setDeletingId(mailbox.id);
+      await apiService.deleteMailbox(mailbox.id);
       toast.success('Mailbox deleted successfully');
       fetchMailboxes();
+      setDeleteConfirmModal({ isOpen: false, mailbox: null });
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete mailbox');
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const cancelDeleteMailbox = () => {
+    setDeleteConfirmModal({ isOpen: false, mailbox: null });
   };
 
   const handleToggleStatus = async (mailbox: MailBox) => {
@@ -105,14 +119,14 @@ export default function MailboxView() {
           pass: "[HIDDEN]" // Don't copy actual passwords for security
         }
       },
-      imapConfig: {
+      imapConfig: mailbox.imapConfig ? {
         host: mailbox.imapConfig.host,
         port: mailbox.imapConfig.port,
         auth: {
           user: mailbox.imapConfig.auth.user,
           pass: "[HIDDEN]" // Don't copy actual passwords for security
         }
-      },
+      } : undefined,
       replyTo: mailbox.replyTo,
       maxEmailsPerDay: mailbox.maxEmailsPerDay,
       sendingProbability: mailbox.sendingProbability,
@@ -293,7 +307,7 @@ export default function MailboxView() {
                         </div>
                       </div>
                       <p className="text-xs text-gray-500 mt-2">
-                        Added {formatDate(mailbox.createdAt)}
+                        Added {mailbox.createdAt ? formatDate(mailbox.createdAt) : 'Unknown date'}
                       </p>
                     </div>
                   </div>
@@ -332,7 +346,7 @@ export default function MailboxView() {
                         <PencilIcon className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteMailbox(mailbox.id)}
+                        onClick={() => handleDeleteMailbox(mailbox)}
                         disabled={deletingId === mailbox.id}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
                         title="Delete account"
@@ -355,6 +369,72 @@ export default function MailboxView() {
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteConfirmModal.isOpen}
+        onClose={cancelDeleteMailbox}
+        title="Delete Mailbox"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <div className="flex-shrink-0">
+              <ExclamationTriangleIcon className="h-10 w-10 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">
+                Delete Email Account
+              </h3>
+              <p className="text-sm text-gray-500">
+                Are you sure you want to delete the mailbox for{' '}
+                <span className="font-medium">{deleteConfirmModal.mailbox?.emailId}</span>?
+              </p>
+            </div>
+          </div>
+          
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="ml-3">
+                <h4 className="text-sm font-medium text-red-800">
+                  This action cannot be undone
+                </h4>
+                <p className="text-sm text-red-700 mt-1">
+                  All email settings, statistics, and configuration will be permanently deleted.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={cancelDeleteMailbox}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDeleteMailbox}
+              disabled={deletingId === deleteConfirmModal.mailbox?.id}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              {deletingId === deleteConfirmModal.mailbox?.id ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Deleting...
+                </>
+              ) : (
+                'Delete Mailbox'
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

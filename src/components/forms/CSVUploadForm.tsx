@@ -99,7 +99,23 @@ const CSVUploadForm: React.FC<CSVUploadFormProps> = ({
       setValidationResult(result);
       toast.success('File validation completed');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message || 'Validation failed';
+      const errorData = error.response?.data;
+      let errorMessage = errorData?.message || error.message || 'Validation failed';
+      
+      // If there are detailed validation errors, include them
+      if (errorData?.errors && Array.isArray(errorData.errors)) {
+        const detailedErrors = errorData.errors.map((err: any) => {
+          if (typeof err === 'string') return err;
+          if (err.property && err.constraints) {
+            return `${err.property}: ${Object.values(err.constraints).join(', ')}`;
+          }
+          if (err.property) return `${err.property}: validation failed`;
+          return JSON.stringify(err);
+        }).join('; ');
+        
+        errorMessage += ` - Details: ${detailedErrors}`;
+      }
+      
       toast.error(errorMessage);
       onUploadError?.(errorMessage);
     } finally {
@@ -126,7 +142,23 @@ const CSVUploadForm: React.FC<CSVUploadFormProps> = ({
         fileInputRef.current.value = '';
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message || 'Upload failed';
+      const errorData = error.response?.data;
+      let errorMessage = errorData?.message || error.message || 'Upload failed';
+      
+      // If there are detailed validation errors, include them
+      if (errorData?.errors && Array.isArray(errorData.errors)) {
+        const detailedErrors = errorData.errors.map((err: any) => {
+          if (typeof err === 'string') return err;
+          if (err.property && err.constraints) {
+            return `${err.property}: ${Object.values(err.constraints).join(', ')}`;
+          }
+          if (err.property) return `${err.property}: validation failed`;
+          return JSON.stringify(err);
+        }).join('; ');
+        
+        errorMessage += ` - Details: ${detailedErrors}`;
+      }
+      
       toast.error(errorMessage);
       onUploadError?.(errorMessage);
     } finally {

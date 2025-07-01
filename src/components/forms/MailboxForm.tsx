@@ -139,8 +139,24 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
       onClose();
       reset();
     } catch (error: any) {
-      const message = error.response?.data?.message || 
+      const errorData = error.response?.data;
+      let message = errorData?.message || 
         `Failed to ${isEditing ? 'update' : 'create'} mailbox configuration`;
+      
+      // If there are detailed validation errors, include them
+      if (errorData?.errors && Array.isArray(errorData.errors)) {
+        const detailedErrors = errorData.errors.map((err: any) => {
+          if (typeof err === 'string') return err;
+          if (err.property && err.constraints) {
+            return `${err.property}: ${Object.values(err.constraints).join(', ')}`;
+          }
+          if (err.property) return `${err.property}: validation failed`;
+          return JSON.stringify(err);
+        }).join('; ');
+        
+        message += ` - Details: ${detailedErrors}`;
+      }
+      
       toast.error(message);
     } finally {
       setIsSubmitting(false);
