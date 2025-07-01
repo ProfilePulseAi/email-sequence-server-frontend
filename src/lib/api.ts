@@ -422,6 +422,27 @@ class ApiService {
     });
   }
 
+  // Service Configurations
+  async getServiceConfigs() {
+    return this.request({ method: 'GET', url: '/service-configs' });
+  }
+
+  async getServiceConfig(id: number) {
+    return this.request({ method: 'GET', url: `/service-configs/${id}` });
+  }
+
+  async createServiceConfig(data: any) {
+    return this.request({ method: 'POST', url: '/service-configs', data });
+  }
+
+  async updateServiceConfig(id: number, data: any) {
+    return this.request({ method: 'PUT', url: `/service-configs/${id}`, data });
+  }
+
+  async deleteServiceConfig(id: number) {
+    return this.request({ method: 'DELETE', url: `/service-configs/${id}` });
+  }
+
   // Generic request method
   async request<T = any>(config: AxiosRequestConfig): Promise<T> {
     const response = await this.api.request(config);

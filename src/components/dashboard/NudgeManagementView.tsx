@@ -14,6 +14,7 @@ import {
 import { ServiceConfig, CreateServiceConfigDto, UpdateServiceConfigDto } from '@/types';
 import ServiceConfigModal from '@/components/dashboard/ServiceConfigModal';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { apiService } from '@/lib/api';
 
 const PLATFORM_ICONS = {
   jira: '🔵',
@@ -49,19 +50,8 @@ export default function NudgeManagementView() {
   const fetchServiceConfigs = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/service-configs', {
-      //   headers: {
-      //     'Authorization': `Bearer ${token}`,
-      //   },
-      // });
-      // const data = await response.json();
-      // setServiceConfigs(data);
-      
-      // Mock data for now
-      setServiceConfigs([
-        
-      ]);
+      const data = await apiService.getServiceConfigs();
+      setServiceConfigs(data);
     } catch (error) {
       console.error('Error fetching service configs:', error);
       toast.error('Failed to load service configurations');
@@ -72,29 +62,7 @@ export default function NudgeManagementView() {
 
   const handleCreate = async (data: CreateServiceConfigDto) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/service-configs', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${token}`,
-      //   },
-      //   body: JSON.stringify(data),
-      // });
-      // const newConfig = await response.json();
-      
-      // Mock response
-      const newConfig: ServiceConfig = {
-        id: Date.now(),
-        name: data.name,
-        platform: data.platform,
-        isActive: true,
-        userId: 1,
-        description: data.description,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
+      const newConfig = await apiService.createServiceConfig(data);
       setServiceConfigs(prev => [...prev, newConfig]);
       setModalOpen(false);
       toast.success('Service configuration created successfully');
@@ -106,22 +74,10 @@ export default function NudgeManagementView() {
 
   const handleUpdate = async (id: number, data: UpdateServiceConfigDto) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/service-configs/${id}`, {
-      //   method: 'PUT',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${token}`,
-      //   },
-      //   body: JSON.stringify(data),
-      // });
-      // const updatedConfig = await response.json();
-      
+      const updatedConfig = await apiService.updateServiceConfig(id, data);
       setServiceConfigs(prev => 
         prev.map(config => 
-          config.id === id 
-            ? { ...config, ...data, updatedAt: new Date().toISOString() }
-            : config
+          config.id === id ? updatedConfig : config
         )
       );
       setModalOpen(false);
@@ -140,14 +96,7 @@ export default function NudgeManagementView() {
 
     try {
       setDeleting(id);
-      // TODO: Replace with actual API call
-      // await fetch(`/api/service-configs/${id}`, {
-      //   method: 'DELETE',
-      //   headers: {
-      //     'Authorization': `Bearer ${token}`,
-      //   },
-      // });
-      
+      await apiService.deleteServiceConfig(id);
       setServiceConfigs(prev => prev.filter(config => config.id !== id));
       toast.success('Service configuration deleted successfully');
     } catch (error) {
