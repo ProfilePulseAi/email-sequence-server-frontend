@@ -300,7 +300,7 @@ export interface OutreachFlow {
 }
 
 // Service Configuration Types
-export type Platform = 'jira' | 'linear' | 'trello' | 'github' | 'clickup' | 'slack' | 'discord';
+export type Platform = 'jira' | 'linear' | 'trello' | 'github' | 'clickup';
 
 export interface ServiceConfig {
   id: number;

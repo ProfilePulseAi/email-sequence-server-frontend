@@ -26,7 +26,7 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
     { id: 'profile', name: 'Profile', icon: UserIcon, href: '/dashboard/settings/profile' },
     { id: 'security', name: 'Security', icon: ShieldCheckIcon, href: '/dashboard/settings/security' },
     { id: 'notifications', name: 'Notifications', icon: BellIcon, href: '/dashboard/settings/notifications' },
-    { id: 'nudge-management', name: 'Nudge Management', icon: CogIcon, href: '/dashboard/settings/nudge-management' },
+    { id: 'crm-platforms', name: 'CRM Platforms', icon: CogIcon, href: '/dashboard/settings/crm-platforms' },
     { id: 'appearance', name: 'Appearance', icon: PaintBrushIcon, href: '/dashboard/settings/appearance' },
   ];
 

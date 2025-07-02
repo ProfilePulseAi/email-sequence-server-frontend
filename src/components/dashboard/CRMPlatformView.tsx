@@ -6,7 +6,6 @@ import {
   PlusIcon, 
   PencilIcon, 
   TrashIcon,
-  ExclamationTriangleIcon,
   CheckCircleIcon,
   XCircleIcon,
   CogIcon
@@ -21,9 +20,7 @@ const PLATFORM_ICONS = {
   linear: '🟣',
   trello: '🔷',
   github: '⚫',
-  clickup: '🟡',
-  slack: '💬',
-  discord: '🎮'
+  clickup: '🟡'
 };
 
 const PLATFORM_NAMES = {
@@ -31,12 +28,10 @@ const PLATFORM_NAMES = {
   linear: 'Linear',
   trello: 'Trello',
   github: 'GitHub',
-  clickup: 'ClickUp',
-  slack: 'Slack',
-  discord: 'Discord'
+  clickup: 'ClickUp'
 };
 
-export default function NudgeManagementView() {
+export default function CRMPlatformView() {
   const [serviceConfigs, setServiceConfigs] = useState<ServiceConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -140,7 +135,7 @@ export default function NudgeManagementView() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Nudge Management
+            CRM Platforms
           </h3>
           <p className="mt-1 text-sm text-gray-500">
             Manage integrations with project management and communication platforms
