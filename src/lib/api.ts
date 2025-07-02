@@ -424,23 +424,23 @@ class ApiService {
 
   // Service Configurations
   async getServiceConfigs() {
-    return this.request({ method: 'GET', url: '/service-configs' });
+    return this.request({ method: 'GET', url: '/ticket-service-configs' });
   }
 
   async getServiceConfig(id: number) {
-    return this.request({ method: 'GET', url: `/service-configs/${id}` });
+    return this.request({ method: 'GET', url: `/ticket-service-configs/${id}` });
   }
 
   async createServiceConfig(data: any) {
-    return this.request({ method: 'POST', url: '/service-configs', data });
+    return this.request({ method: 'POST', url: '/ticket-service-configs', data });
   }
 
   async updateServiceConfig(id: number, data: any) {
-    return this.request({ method: 'PUT', url: `/service-configs/${id}`, data });
+    return this.request({ method: 'PUT', url: `/ticket-service-configs/${id}`, data });
   }
 
   async deleteServiceConfig(id: number) {
-    return this.request({ method: 'DELETE', url: `/service-configs/${id}` });
+    return this.request({ method: 'DELETE', url: `/ticket-service-configs/${id}` });
   }
 
   // Generic request method
