@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -20,12 +20,10 @@ import {
   EmailSentNode,
   WaitNode,
   ConditionNode,
-  LinkClickNode,
-  RepliedNode,
-  StartNode,
   EndNode,
 } from './FlowNodes';
-import { FlowNode, FlowEdge, OutreachDto, Template } from '@/types';
+import { OutreachDto, Template, FlowNodeData } from '@/types';
+import { apiService } from '@/lib/api';
 
 interface OutreachFlowBuilderProps {
   outreach?: OutreachDto;
@@ -36,92 +34,104 @@ interface OutreachFlowBuilderProps {
 }
 
 const nodeTypes: NodeTypes = {
-  emailSent: EmailSentNode,
   wait: WaitNode,
-  condition: ConditionNode,
-  linkClick: LinkClickNode,
-  replied: RepliedNode,
-  start: StartNode,
+  engagementTrigger: ConditionNode, // Repurposed for engagement triggers
+  takeAction: EmailSentNode, // Repurposed for take actions
   end: EndNode,
 };
 
 const initialNodes: Node[] = [
   {
     id: '1',
-    type: 'start',
+    type: 'takeAction',
     position: { x: 250, y: 25 },
-    data: { label: 'Start', type: 'start' },
-  },
-  {
-    id: '2',
-    type: 'emailSent',
-    position: { x: 200, y: 125 },
     data: { 
-      label: 'Send Email', 
-      type: 'email',
+      label: 'Send Initial Email', 
+      type: 'takeAction',
+      actionType: 'send_email',
       templateId: '1',
       description: 'Initial outreach email'
     },
   },
   {
-    id: '3',
-    type: 'condition',
-    position: { x: 200, y: 225 },
+    id: '2',
+    type: 'wait',
+    position: { x: 250, y: 150 },
     data: { 
-      label: 'Link Clicked?', 
-      type: 'condition',
-      condition: 'Link Clicked?'
+      label: 'Wait 3 Days', 
+      type: 'wait',
+      waitValue: 3,
+      waitUnit: 'days',
+      cancelActions: ['email_replied', 'link_clicked'],
+      description: 'Wait for response or engagement'
+    },
+  },
+  {
+    id: '3',
+    type: 'engagementTrigger',
+    position: { x: 100, y: 300 },
+    data: { 
+      label: 'Email Replied?', 
+      type: 'engagementTrigger',
+      actionType: 'email_replied',
+      condition: 'Email Replied'
     },
   },
   {
     id: '4',
-    type: 'wait',
-    position: { x: 50, y: 325 },
+    type: 'engagementTrigger',
+    position: { x: 400, y: 300 },
     data: { 
-      label: 'Wait 3 Days', 
-      type: 'wait',
-      waitDays: 3,
-      description: 'No link clicked'
+      label: 'Link Clicked?', 
+      type: 'engagementTrigger',
+      actionType: 'link_clicked',
+      condition: 'Link Clicked'
     },
   },
   {
     id: '5',
-    type: 'wait',
-    position: { x: 350, y: 325 },
+    type: 'end',
+    position: { x: 100, y: 450 },
     data: { 
-      label: 'Wait 5 Days', 
-      type: 'wait',
-      waitDays: 5,
-      description: 'Link clicked'
+      label: 'End - Replied', 
+      type: 'end',
+      description: 'Customer replied - end flow'
     },
   },
   {
     id: '6',
-    type: 'condition',
-    position: { x: 200, y: 425 },
+    type: 'takeAction',
+    position: { x: 400, y: 450 },
     data: { 
-      label: 'Email Replied?', 
-      type: 'condition',
-      condition: 'Email Replied?'
+      label: 'Send Follow-up', 
+      type: 'takeAction',
+      actionType: 'send_email',
+      templateId: '2',
+      description: 'Follow-up email after link click'
     },
   },
   {
     id: '7',
-    type: 'end',
-    position: { x: 350, y: 525 },
-    data: { label: 'End Flow', type: 'end' },
+    type: 'takeAction',
+    position: { x: 250, y: 600 },
+    data: { 
+      label: 'Send Reminder', 
+      type: 'takeAction',
+      actionType: 'send_email',
+      templateId: '3',
+      description: 'Reminder email if no response'
+    },
   },
   {
     id: '8',
-    type: 'emailSent',
-    position: { x: 50, y: 525 },
+    type: 'end',
+    position: { x: 250, y: 750 },
     data: { 
-      label: 'Follow-up Email', 
-      type: 'email',
-      templateId: '2',
-      description: 'Follow-up email'
+      label: 'End Flow', 
+      type: 'end',
+      description: 'Campaign completed'
     },
-  },
+  }
 ];
 
 const initialEdges: Edge[] = [
@@ -129,49 +139,52 @@ const initialEdges: Edge[] = [
     id: 'e1-2',
     source: '1',
     target: '2',
+    label: 'Send Email',
   },
   {
     id: 'e2-3',
     source: '2',
     target: '3',
+    sourceHandle: 'replied',
+    label: 'Replied',
   },
   {
-    id: 'e3-4',
-    source: '3',
+    id: 'e2-4',
+    source: '2',
     target: '4',
-    sourceHandle: 'no',
-    label: 'No',
+    sourceHandle: 'clicked',
+    label: 'Link Clicked',
+  },
+  {
+    id: 'e2-7',
+    source: '2',
+    target: '7',
+    sourceHandle: 'timeout',
+    label: 'No Response',
   },
   {
     id: 'e3-5',
     source: '3',
     target: '5',
-    sourceHandle: 'yes',
-    label: 'Yes',
+    label: 'End',
   },
   {
     id: 'e4-6',
     source: '4',
     target: '6',
-  },
-  {
-    id: 'e5-6',
-    source: '5',
-    target: '6',
-  },
-  {
-    id: 'e6-7',
-    source: '6',
-    target: '7',
-    sourceHandle: 'yes',
-    label: 'Yes',
+    label: 'Follow-up',
   },
   {
     id: 'e6-8',
     source: '6',
     target: '8',
-    sourceHandle: 'no',
-    label: 'No',
+    label: 'Complete',
+  },
+  {
+    id: 'e7-8',
+    source: '7',
+    target: '8',
+    label: 'Complete',
   },
 ];
 
@@ -187,6 +200,56 @@ export default function OutreachFlowBuilder({
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [outreachName, setOutreachName] = useState(outreach?.name || '');
   const [outreachSubject, setOutreachSubject] = useState(outreach?.subject || '');
+  const [templateLinks, setTemplateLinks] = useState<{[templateId: string]: string[]}>({});
+
+  // Function to parse links from template content
+  const parseTemplateLinks = useCallback(async (templateId: string) => {
+    if (!templateId || templateLinks[templateId]) return;
+    
+    try {
+      const templateContent = await apiService.getTemplateContent(parseInt(templateId));
+      const htmlContent = templateContent.htmlContent || '';
+      
+      // Parse href attributes from the HTML content
+      const hrefRegex = /href=["']([^"']*)["']/gi;
+      const links: string[] = [];
+      let match;
+      
+      while ((match = hrefRegex.exec(htmlContent)) !== null) {
+        const url = match[1];
+        if (url && !url.startsWith('#') && !url.startsWith('mailto:')) {
+          links.push(url);
+        }
+      }
+      
+      setTemplateLinks(prev => ({
+        ...prev,
+        [templateId]: links
+      }));
+    } catch (error) {
+      console.error('Error parsing template links:', error);
+    }
+  }, [templateLinks]);
+
+  // Function to get template links for wait nodes (from previous email action)
+  const getLinksForWaitNode = useCallback((nodeId: string) => {
+    // Find the previous email action node
+    const incomingEdge = edges.find(edge => edge.target === nodeId);
+    if (incomingEdge) {
+      const sourceNode = nodes.find(node => node.id === incomingEdge.source);
+      if (sourceNode?.type === 'takeAction' && sourceNode.data.actionType === 'send_email' && sourceNode.data.templateId) {
+        return templateLinks[sourceNode.data.templateId] || [];
+      }
+    }
+    return [];
+  }, [edges, nodes, templateLinks]);
+
+  // Effect to parse template links when a template is selected
+  useEffect(() => {
+    if (selectedNode?.type === 'takeAction' && selectedNode.data.templateId) {
+      parseTemplateLinks(selectedNode.data.templateId);
+    }
+  }, [selectedNode, parseTemplateLinks]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -219,17 +282,27 @@ export default function OutreachFlowBuilder({
       },
       data: {
         label: getNodeLabel(nodeType),
-        type: nodeType as any,
-        ...(nodeType === 'wait' && { waitDays: 1 }),
-        ...(nodeType === 'condition' && { condition: 'Condition?' }),
-        ...(nodeType === 'emailSent' && { templateId: templates[0]?.id?.toString() || '1' }),
+        type: nodeType,
+        ...(nodeType === 'wait' && { 
+          waitValue: 1,
+          waitUnit: 'days',
+          cancelActions: []
+        }),
+        ...(nodeType === 'engagementTrigger' && { 
+          actionType: 'email_replied',
+          condition: 'Email Replied'
+        }),
+        ...(nodeType === 'takeAction' && { 
+          actionType: 'send_email',
+          templateId: templates[0]?.id?.toString() || '1'
+        }),
       },
     };
 
     setNodes((nds) => [...nds, newNode]);
   }, [setNodes, templates]);
 
-  const updateNodeData = useCallback((nodeId: string, newData: Partial<any>) => {
+  const updateNodeData = useCallback((nodeId: string, newData: Partial<FlowNodeData>) => {
     // Update nodes state
     setNodes((nds) => {
       const updatedNodes = nds.map((node) =>
@@ -313,12 +386,9 @@ export default function OutreachFlowBuilder({
 
   function getNodeLabel(nodeType: string): string {
     switch (nodeType) {
-      case 'emailSent': return 'Send Email';
       case 'wait': return 'Wait';
-      case 'condition': return 'Condition';
-      case 'linkClick': return 'Link Clicked';
-      case 'replied': return 'Email Replied';
-      case 'start': return 'Start';
+      case 'engagementTrigger': return 'Engagement Trigger';
+      case 'takeAction': return 'Take Action';
       case 'end': return 'End';
       default: return 'Node';
     }
@@ -388,34 +458,22 @@ export default function OutreachFlowBuilder({
       <div className="bg-white border-b border-gray-200 p-2">
         <div className="flex gap-2 flex-wrap">
           <button
-            onClick={() => addNewNode('emailSent')}
-            className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-          >
-            + Email
-          </button>
-          <button
             onClick={() => addNewNode('wait')}
             className="px-3 py-1 text-sm bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
           >
             + Wait
           </button>
           <button
-            onClick={() => addNewNode('condition')}
-            className="px-3 py-1 text-sm bg-purple-100 text-purple-800 rounded hover:bg-purple-200"
-          >
-            + Condition
-          </button>
-          <button
-            onClick={() => addNewNode('linkClick')}
-            className="px-3 py-1 text-sm bg-green-100 text-green-800 rounded hover:bg-green-200"
-          >
-            + Link Click
-          </button>
-          <button
-            onClick={() => addNewNode('replied')}
+            onClick={() => addNewNode('engagementTrigger')}
             className="px-3 py-1 text-sm bg-orange-100 text-orange-800 rounded hover:bg-orange-200"
           >
-            + Reply
+            + Engagement Trigger
+          </button>
+          <button
+            onClick={() => addNewNode('takeAction')}
+            className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+          >
+            + Take Action
           </button>
           <button
             onClick={() => addNewNode('end')}
@@ -455,34 +513,165 @@ export default function OutreachFlowBuilder({
                 <p className="text-sm text-gray-600">{selectedNode.data.label}</p>
               </div>
 
-              {selectedNode.type === 'emailSent' && (
+              {/* WAIT NODE PROPERTIES */}
+              {selectedNode.type === 'wait' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Wait Duration
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        value={selectedNode.data.waitValue || 1}
+                        onChange={(e) => updateNodeData(selectedNode.id, { waitValue: parseInt(e.target.value) })}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                      <select
+                        value={selectedNode.data.waitUnit || 'days'}
+                        onChange={(e) => updateNodeData(selectedNode.id, { waitUnit: e.target.value as 'hours' | 'days' })}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cancel Actions (Skip wait if these happen)
+                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedNode.data.cancelActions?.includes('email_opened') || false}
+                          onChange={(e) => {
+                            const actions = selectedNode.data.cancelActions || [];
+                            const newActions = e.target.checked
+                              ? [...actions, 'email_opened']
+                              : actions.filter((a: string) => a !== 'email_opened');
+                            updateNodeData(selectedNode.id, { cancelActions: newActions });
+                          }}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Email Opened</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedNode.data.cancelActions?.includes('email_replied') || false}
+                          onChange={(e) => {
+                            const actions = selectedNode.data.cancelActions || [];
+                            const newActions = e.target.checked
+                              ? [...actions, 'email_replied']
+                              : actions.filter((a: string) => a !== 'email_replied');
+                            updateNodeData(selectedNode.id, { cancelActions: newActions });
+                          }}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Email Replied</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedNode.data.cancelActions?.includes('link_clicked') || false}
+                          onChange={(e) => {
+                            const actions = selectedNode.data.cancelActions || [];
+                            const newActions = e.target.checked
+                              ? [...actions, 'link_clicked']
+                              : actions.filter((a: string) => a !== 'link_clicked');
+                            updateNodeData(selectedNode.id, { cancelActions: newActions });
+                          }}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Link Clicked</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Show specific link selection if link_clicked is selected */}
+                  {selectedNode.data.cancelActions?.includes('link_clicked') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Specific Link (Optional)
+                      </label>
+                      <select
+                        value={selectedNode.data.specificLink || ''}
+                        onChange={(e) => updateNodeData(selectedNode.id, { specificLink: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Any link</option>
+                        {getLinksForWaitNode(selectedNode.id).map((link, index) => (
+                          <option key={index} value={link}>
+                            {link.length > 40 ? `${link.substring(0, 40)}...` : link}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Links parsed from previous email templates
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      value={selectedNode.data.description || ''}
+                      onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      rows={3}
+                      placeholder="Enter description..."
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ENGAGEMENT TRIGGER NODE PROPERTIES */}
+              {selectedNode.type === 'engagementTrigger' && (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Template
+                      Action Type
                     </label>
                     <select
-                      value={selectedNode.data.templateId || ''}
-                      onChange={(e) => updateNodeData(selectedNode.id, { templateId: e.target.value })}
+                      value={selectedNode.data.actionType || 'email_replied'}
+                      onChange={(e) => updateNodeData(selectedNode.id, { actionType: e.target.value as FlowNodeData['actionType'] })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="">Select a template</option>
-                      {templates && templates.length > 0 ? (
-                        templates.map((template) => (
-                          <option key={template.id} value={template.id.toString()}>
-                            {template.name}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="" disabled>No templates available</option>
-                      )}
+                      <option value="email_replied">Email Replied</option>
+                      <option value="link_clicked">Link Clicked</option>
+                      <option value="email_opened">Email Opened</option>
                     </select>
-                    {(!templates || templates.length === 0) && (
-                      <p className="text-sm text-orange-600 mt-1">
-                        No templates found. Please create templates first.
+                  </div>
+                  
+                  {selectedNode.data.actionType === 'link_clicked' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Specific Link
+                      </label>
+                      <select
+                        value={selectedNode.data.specificLink || ''}
+                        onChange={(e) => updateNodeData(selectedNode.id, { specificLink: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Any link</option>
+                        {getLinksForWaitNode(selectedNode.id).map((link, index) => (
+                          <option key={index} value={link}>
+                            {link.length > 40 ? `${link.substring(0, 40)}...` : link}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Links parsed from email templates
                       </p>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Description
@@ -498,20 +687,91 @@ export default function OutreachFlowBuilder({
                 </div>
               )}
 
-              {selectedNode.type === 'wait' && (
+              {/* TAKE ACTION NODE PROPERTIES */}
+              {selectedNode.type === 'takeAction' && (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Wait Days
+                      Action Type
                     </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={selectedNode.data.waitDays || 1}
-                      onChange={(e) => updateNodeData(selectedNode.id, { waitDays: parseInt(e.target.value) })}
+                    <select
+                      value={selectedNode.data.actionType || 'send_email'}
+                      onChange={(e) => updateNodeData(selectedNode.id, { actionType: e.target.value as FlowNodeData['actionType'] })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
+                    >
+                      <option value="send_email">Send Email</option>
+                      <option value="create_task">Create Task</option>
+                    </select>
                   </div>
+
+                  {selectedNode.data.actionType === 'send_email' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Template
+                      </label>
+                      <select
+                        value={selectedNode.data.templateId || ''}
+                        onChange={(e) => {
+                          updateNodeData(selectedNode.id, { templateId: e.target.value });
+                          if (e.target.value) {
+                            parseTemplateLinks(e.target.value);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Select a template</option>
+                        {templates && templates.length > 0 ? (
+                          templates.map((template) => (
+                            <option key={template.id} value={template.id.toString()}>
+                              {template.name}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>No templates available</option>
+                        )}
+                      </select>
+                      {(!templates || templates.length === 0) && (
+                        <p className="text-sm text-orange-600 mt-1">
+                          No templates found. Please create templates first.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedNode.data.actionType === 'create_task' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Task Title
+                        </label>
+                        <input
+                          type="text"
+                          value={selectedNode.data.taskTitle || ''}
+                          onChange={(e) => updateNodeData(selectedNode.id, { taskTitle: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Enter task title"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Task Platform
+                        </label>
+                        <select
+                          value={selectedNode.data.taskPlatform || ''}
+                          onChange={(e) => updateNodeData(selectedNode.id, { taskPlatform: e.target.value as FlowNodeData['taskPlatform'] })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Select platform</option>
+                          <option value="jira">Jira</option>
+                          <option value="linear">Linear</option>
+                          <option value="trello">Trello</option>
+                          <option value="github">GitHub</option>
+                          <option value="clickup">ClickUp</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Description
@@ -527,36 +787,8 @@ export default function OutreachFlowBuilder({
                 </div>
               )}
 
-              {selectedNode.type === 'condition' && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Condition
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedNode.data.condition || ''}
-                      onChange={(e) => updateNodeData(selectedNode.id, { condition: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter condition..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      value={selectedNode.data.description || ''}
-                      onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="Enter description..."
-                    />
-                  </div>
-                </div>
-              )}
-
-              {(selectedNode.type === 'linkClick' || selectedNode.type === 'replied') && (
+              {/* END NODE PROPERTIES */}
+              {selectedNode.type === 'end' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description
@@ -571,16 +803,15 @@ export default function OutreachFlowBuilder({
                 </div>
               )}
 
-              {selectedNode.type !== 'start' && selectedNode.type !== 'end' && (
-                <div className="pt-4 border-t">
-                  <button
-                    onClick={() => deleteNode(selectedNode.id)}
-                    className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                  >
-                    Delete Node
-                  </button>
-                </div>
-              )}
+              {/* Delete button for all node types */}
+              <div className="pt-4 border-t">
+                <button
+                  onClick={() => deleteNode(selectedNode.id)}
+                  className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Delete Node
+                </button>
+              </div>
             </div>
           </div>
         )}

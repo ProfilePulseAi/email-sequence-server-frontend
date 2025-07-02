@@ -254,11 +254,29 @@ export interface OutreachDto {
 // ReactFlow Node Types
 export interface FlowNodeData {
   label: string;
-  type: 'email' | 'wait' | 'condition' | 'linkClick' | 'reply' | 'start' | 'end';
-  templateId?: string;
-  waitDays?: number;
+  type: 'wait' | 'engagementTrigger' | 'takeAction' | 'end';
+  
+  // Wait node properties
+  waitValue?: number;
+  waitUnit?: 'hours' | 'days';
+  cancelActions?: ('email_opened' | 'email_replied' | 'link_clicked')[];
+  specificLink?: string;
+  linkedTemplateId?: string;
+  
+  // Engagement Trigger node properties
+  actionType?: 'email_replied' | 'link_clicked' | 'email_opened' | 'send_email' | 'create_task';
   condition?: string;
+  
+  // Take Action node properties
+  templateId?: string;
+  taskTitle?: string;
+  taskPlatform?: 'jira' | 'linear' | 'trello' | 'github' | 'clickup';
+  
+  // Common properties
   description?: string;
+  
+  // Legacy properties (for backward compatibility)
+  waitDays?: number;
 }
 
 export interface FlowNode {
