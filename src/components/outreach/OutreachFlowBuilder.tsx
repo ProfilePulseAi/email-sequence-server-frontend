@@ -272,7 +272,7 @@ export default function OutreachFlowBuilder({
     return 1; // default
   }, [edges, nodes]);
 
-  const addNewNode = useCallback((nodeType: string) => {
+  const addNewNode = useCallback((nodeType: string, subType?: string) => {
     const newNode: Node = {
       id: `node_${Date.now()}`,
       type: nodeType,
@@ -281,7 +281,7 @@ export default function OutreachFlowBuilder({
         y: Math.random() * 400 + 200,
       },
       data: {
-        label: getNodeLabel(nodeType),
+        label: getNodeLabel(nodeType, subType),
         type: nodeType,
         ...(nodeType === 'wait' && { 
           waitValue: 1,
@@ -289,12 +289,13 @@ export default function OutreachFlowBuilder({
           cancelActions: []
         }),
         ...(nodeType === 'engagementTrigger' && { 
-          actionType: 'email_replied',
-          condition: 'Email Replied'
+          actionType: subType || 'email_replied',
+          condition: getEngagementTriggerLabel(subType || 'email_replied')
         }),
         ...(nodeType === 'takeAction' && { 
-          actionType: 'send_email',
-          templateId: templates[0]?.id?.toString() || '1'
+          actionType: subType || 'send_email',
+          templateId: templates[0]?.id?.toString() || '1',
+          ...(subType === 'create_task' && { taskTitle: '', taskPlatform: '' })
         }),
       },
     };
@@ -384,433 +385,543 @@ export default function OutreachFlowBuilder({
     onSave?.(outreachData);
   };
 
-  function getNodeLabel(nodeType: string): string {
+  function getNodeLabel(nodeType: string, subType?: string): string {
     switch (nodeType) {
       case 'wait': return 'Wait';
-      case 'engagementTrigger': return 'Engagement Trigger';
-      case 'takeAction': return 'Take Action';
+      case 'engagementTrigger': return getEngagementTriggerLabel(subType || 'email_replied');
+      case 'takeAction': return getTakeActionLabel(subType || 'send_email');
       case 'end': return 'End';
       default: return 'Node';
     }
   }
 
+  function getEngagementTriggerLabel(actionType: string): string {
+    switch (actionType) {
+      case 'email_replied': return 'Email Replied';
+      case 'link_clicked': return 'Link Clicked';
+      case 'email_opened': return 'Email Opened';
+      default: return 'Email Replied';
+    }
+  }
+
+  function getTakeActionLabel(actionType: string): string {
+    switch (actionType) {
+      case 'send_email': return 'Send Email';
+      case 'create_task': return 'Create Task';
+      default: return 'Send Email';
+    }
+  }
+
   return (
-    <div className="w-full h-screen flex flex-col bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-end gap-4">
-          <div className="flex-none w-80">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Outreach Name *
-            </label>
-            <input
-              type="text"
-              value={outreachName}
-              onChange={(e) => {
-                setOutreachName(e.target.value);
-                if (onChange) {
-                  const outreachData = convertFlowToOutreach();
-                  outreachData.name = e.target.value;
-                  onChange(outreachData);
-                }
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter campaign name"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Subject *
-            </label>
-            <input
-              type="text"
-              value={outreachSubject}
-              onChange={(e) => {
-                setOutreachSubject(e.target.value);
-                if (onChange) {
-                  const outreachData = convertFlowToOutreach();
-                  outreachData.subject = e.target.value;
-                  onChange(outreachData);
-                }
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter email subject line"
-            />
-          </div>
-          <div className="flex gap-3 flex-none">
-            <button
-              onClick={onCancel}
-              className="px-6 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Save Flow
-            </button>
+    <div className="w-full h-screen flex flex-col bg-gray-100">
+      {/* Header Section */}
+      <div className="bg-white border-b-2 border-gray-300 shadow-sm">
+        <div className="p-4">
+          <div className="flex items-end gap-4">
+            <div className="flex-none w-80">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Outreach Name *
+              </label>
+              <input
+                type="text"
+                value={outreachName}
+                onChange={(e) => {
+                  setOutreachName(e.target.value);
+                  if (onChange) {
+                    const outreachData = convertFlowToOutreach();
+                    outreachData.name = e.target.value;
+                    onChange(outreachData);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter campaign name"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Subject *
+              </label>
+              <input
+                type="text"
+                value={outreachSubject}
+                onChange={(e) => {
+                  setOutreachSubject(e.target.value);
+                  if (onChange) {
+                    const outreachData = convertFlowToOutreach();
+                    outreachData.subject = e.target.value;
+                    onChange(outreachData);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter email subject line"
+              />
+            </div>
+            <div className="flex gap-3 flex-none">
+              <button
+                onClick={onCancel}
+                className="px-6 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Save Flow
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200 p-2">
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => addNewNode('wait')}
-            className="px-3 py-1 text-sm bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
-          >
-            + Wait
-          </button>
-          <button
-            onClick={() => addNewNode('engagementTrigger')}
-            className="px-3 py-1 text-sm bg-orange-100 text-orange-800 rounded hover:bg-orange-200"
-          >
-            + Engagement Trigger
-          </button>
-          <button
-            onClick={() => addNewNode('takeAction')}
-            className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-          >
-            + Take Action
-          </button>
-          <button
-            onClick={() => addNewNode('end')}
-            className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded hover:bg-red-200"
-          >
-            + End
-          </button>
-        </div>
-      </div>
+      {/* Toolbar Section */}
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300 shadow-sm">
+        <div className="p-3 border-l-4 border-blue-500">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Wait Section */}
+            <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-200 shadow-sm">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Wait:</span>
+              <button
+                onClick={() => addNewNode('wait')}
+                className="px-3 py-1.5 text-xs bg-yellow-100 text-yellow-800 rounded-md hover:bg-yellow-200 transition-colors border border-yellow-300 font-medium"
+              >
+                + Wait
+              </button>
+            </div>
 
-      {/* Flow Editor */}
-      <div className="flex-1 flex">
-        <div className="flex-1 relative">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            nodeTypes={nodeTypes}
-            fitView
-            className="bg-gray-50"
-          >
-            <Controls />
-            <MiniMap />
-            <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-          </ReactFlow>
-        </div>
+            {/* Divider */}
+            <div className="h-8 w-px bg-gray-400"></div>
 
-        {/* Properties Panel */}
-        {selectedNode && (
-          <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-y-auto">
-            <div className="space-y-4">
-              <div className="border-b pb-2">
-                <h3 className="font-semibold text-gray-900">Node Properties</h3>
-                <p className="text-sm text-gray-600">{selectedNode.data.label}</p>
+            {/* Engagement Trigger Section */}
+            <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-200 shadow-sm">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Triggers:</span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => addNewNode('engagementTrigger', 'email_replied')}
+                  className="px-2.5 py-1.5 text-xs bg-orange-50 text-orange-700 rounded-md hover:bg-orange-100 transition-colors border border-orange-200 font-medium"
+                  title="Email Replied Trigger"
+                >
+                  + Replied
+                </button>
+                <button
+                  onClick={() => addNewNode('engagementTrigger', 'link_clicked')}
+                  className="px-2.5 py-1.5 text-xs bg-orange-50 text-orange-700 rounded-md hover:bg-orange-100 transition-colors border border-orange-200 font-medium"
+                  title="Link Clicked Trigger"
+                >
+                  + Clicked
+                </button>
+                <button
+                  onClick={() => addNewNode('engagementTrigger', 'email_opened')}
+                  className="px-2.5 py-1.5 text-xs bg-orange-50 text-orange-700 rounded-md hover:bg-orange-100 transition-colors border border-orange-200 font-medium"
+                  title="Email Opened Trigger"
+                >
+                  + Opened
+                </button>
               </div>
+            </div>
 
-              {/* WAIT NODE PROPERTIES */}
-              {selectedNode.type === 'wait' && (
+            {/* Divider */}
+            <div className="h-8 w-px bg-gray-400"></div>
+
+            {/* Take Action Section */}
+            <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-200 shadow-sm">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions:</span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => addNewNode('takeAction', 'send_email')}
+                  className="px-2.5 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors border border-blue-200 font-medium"
+                  title="Send Email Action"
+                >
+                  + Email
+                </button>
+                <button
+                  onClick={() => addNewNode('takeAction', 'create_task')}
+                  className="px-2.5 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors border border-blue-200 font-medium"
+                  title="Create Task Action"
+                >
+                  + Task
+                </button>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="h-8 w-px bg-gray-400"></div>
+
+            {/* End Section */}
+            <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-200 shadow-sm">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">End:</span>
+              <button
+                onClick={() => addNewNode('end')}
+                className="px-3 py-1.5 text-xs bg-red-100 text-red-800 rounded-md hover:bg-red-200 transition-colors border border-red-300 font-medium"
+              >
+                + End
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex bg-gray-200">
+        {/* Flow Editor Section */}
+        <div className="flex-1 relative border-r-4 ">
+          <div className="h-full bg-white m-2 rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={onNodeClick}
+              nodeTypes={nodeTypes}
+              fitView
+              className="bg-gray-50"
+            >
+              <Controls />
+              <MiniMap />
+              <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+            </ReactFlow>
+          </div>
+        </div>
+
+        {/* Properties Panel Section */}
+        {selectedNode && (
+          <div className="w-80 bg-gradient-to-b from-gray-50 to-gray-100 border-l-4  shadow-lg">
+            <div className="h-full bg-white m-2 rounded-lg shadow-md border-2 border-gray-300 overflow-hidden">
+              <div className="p-4 overflow-y-auto h-full">
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Wait Duration
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        min="1"
-                        value={selectedNode.data.waitValue || 1}
-                        onChange={(e) => updateNodeData(selectedNode.id, { waitValue: parseInt(e.target.value) })}
-                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                      <select
-                        value={selectedNode.data.waitUnit || 'days'}
-                        onChange={(e) => updateNodeData(selectedNode.id, { waitUnit: e.target.value as 'hours' | 'days' })}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="hours">Hours</option>
-                        <option value="days">Days</option>
-                      </select>
-                    </div>
+                  <div className="border-b-2 border-gray-200 pb-3 bg-gradient-to-r from-blue-50 to-indigo-50 -m-4 p-4 mb-4">
+                    <h3 className="font-bold text-gray-900 text-lg">Node Properties</h3>
+                    <p className="text-sm text-gray-600 font-medium">{selectedNode.data.label}</p>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Cancel Actions (Skip wait if these happen)
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedNode.data.cancelActions?.includes('email_opened') || false}
-                          onChange={(e) => {
-                            const actions = selectedNode.data.cancelActions || [];
-                            const newActions = e.target.checked
-                              ? [...actions, 'email_opened']
-                              : actions.filter((a: string) => a !== 'email_opened');
-                            updateNodeData(selectedNode.id, { cancelActions: newActions });
-                          }}
-                          className="mr-2"
-                        />
-                        <span className="text-sm">Email Opened</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedNode.data.cancelActions?.includes('email_replied') || false}
-                          onChange={(e) => {
-                            const actions = selectedNode.data.cancelActions || [];
-                            const newActions = e.target.checked
-                              ? [...actions, 'email_replied']
-                              : actions.filter((a: string) => a !== 'email_replied');
-                            updateNodeData(selectedNode.id, { cancelActions: newActions });
-                          }}
-                          className="mr-2"
-                        />
-                        <span className="text-sm">Email Replied</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedNode.data.cancelActions?.includes('link_clicked') || false}
-                          onChange={(e) => {
-                            const actions = selectedNode.data.cancelActions || [];
-                            const newActions = e.target.checked
-                              ? [...actions, 'link_clicked']
-                              : actions.filter((a: string) => a !== 'link_clicked');
-                            updateNodeData(selectedNode.id, { cancelActions: newActions });
-                          }}
-                          className="mr-2"
-                        />
-                        <span className="text-sm">Link Clicked</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Show specific link selection if link_clicked is selected */}
-                  {selectedNode.data.cancelActions?.includes('link_clicked') && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Specific Link (Optional)
-                      </label>
-                      <select
-                        value={selectedNode.data.specificLink || ''}
-                        onChange={(e) => updateNodeData(selectedNode.id, { specificLink: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Any link</option>
-                        {getLinksForWaitNode(selectedNode.id).map((link, index) => (
-                          <option key={index} value={link}>
-                            {link.length > 40 ? `${link.substring(0, 40)}...` : link}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Links parsed from previous email templates
-                      </p>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      value={selectedNode.data.description || ''}
-                      onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="Enter description..."
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* ENGAGEMENT TRIGGER NODE PROPERTIES */}
-              {selectedNode.type === 'engagementTrigger' && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Action Type
-                    </label>
-                    <select
-                      value={selectedNode.data.actionType || 'email_replied'}
-                      onChange={(e) => updateNodeData(selectedNode.id, { actionType: e.target.value as FlowNodeData['actionType'] })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="email_replied">Email Replied</option>
-                      <option value="link_clicked">Link Clicked</option>
-                      <option value="email_opened">Email Opened</option>
-                    </select>
-                  </div>
-                  
-                  {selectedNode.data.actionType === 'link_clicked' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Specific Link
-                      </label>
-                      <select
-                        value={selectedNode.data.specificLink || ''}
-                        onChange={(e) => updateNodeData(selectedNode.id, { specificLink: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Any link</option>
-                        {getLinksForWaitNode(selectedNode.id).map((link, index) => (
-                          <option key={index} value={link}>
-                            {link.length > 40 ? `${link.substring(0, 40)}...` : link}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Links parsed from email templates
-                      </p>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      value={selectedNode.data.description || ''}
-                      onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="Enter description..."
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* TAKE ACTION NODE PROPERTIES */}
-              {selectedNode.type === 'takeAction' && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Action Type
-                    </label>
-                    <select
-                      value={selectedNode.data.actionType || 'send_email'}
-                      onChange={(e) => updateNodeData(selectedNode.id, { actionType: e.target.value as FlowNodeData['actionType'] })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="send_email">Send Email</option>
-                      <option value="create_task">Create Task</option>
-                    </select>
-                  </div>
-
-                  {selectedNode.data.actionType === 'send_email' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Template
-                      </label>
-                      <select
-                        value={selectedNode.data.templateId || ''}
-                        onChange={(e) => {
-                          updateNodeData(selectedNode.id, { templateId: e.target.value });
-                          if (e.target.value) {
-                            parseTemplateLinks(e.target.value);
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Select a template</option>
-                        {templates && templates.length > 0 ? (
-                          templates.map((template) => (
-                            <option key={template.id} value={template.id.toString()}>
-                              {template.name}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="" disabled>No templates available</option>
-                        )}
-                      </select>
-                      {(!templates || templates.length === 0) && (
-                        <p className="text-sm text-orange-600 mt-1">
-                          No templates found. Please create templates first.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {selectedNode.data.actionType === 'create_task' && (
-                    <div className="space-y-3">
-                      <div>
+                  {/* WAIT NODE PROPERTIES */}
+                  {selectedNode.type === 'wait' && (
+                    <div className="space-y-4 bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-lg p-4 shadow-sm">
+                      <div className="border-b border-yellow-200 pb-2 mb-3">
+                        <h4 className="font-semibold text-yellow-800 text-sm uppercase tracking-wide">Wait Configuration</h4>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-yellow-200">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Task Title
+                          Wait Duration
                         </label>
-                        <input
-                          type="text"
-                          value={selectedNode.data.taskTitle || ''}
-                          onChange={(e) => updateNodeData(selectedNode.id, { taskTitle: e.target.value })}
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            value={selectedNode.data.waitValue || 1}
+                            onChange={(e) => updateNodeData(selectedNode.id, { waitValue: parseInt(e.target.value) })}
+                            className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                          <select
+                            value={selectedNode.data.waitUnit || 'days'}
+                            onChange={(e) => updateNodeData(selectedNode.id, { waitUnit: e.target.value as 'hours' | 'days' })}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="hours">Hours</option>
+                            <option value="days">Days</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-lg p-3 border border-yellow-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Cancel Actions (Skip wait if these happen)
+                        </label>
+                        <div className="space-y-2">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedNode.data.cancelActions?.includes('email_opened') || false}
+                              onChange={(e) => {
+                                const actions = selectedNode.data.cancelActions || [];
+                                const newActions = e.target.checked
+                                  ? [...actions, 'email_opened']
+                                  : actions.filter((a: string) => a !== 'email_opened');
+                                updateNodeData(selectedNode.id, { cancelActions: newActions });
+                              }}
+                              className="mr-2"
+                            />
+                            <span className="text-sm">Email Opened</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedNode.data.cancelActions?.includes('email_replied') || false}
+                              onChange={(e) => {
+                                const actions = selectedNode.data.cancelActions || [];
+                                const newActions = e.target.checked
+                                  ? [...actions, 'email_replied']
+                                  : actions.filter((a: string) => a !== 'email_replied');
+                                updateNodeData(selectedNode.id, { cancelActions: newActions });
+                              }}
+                              className="mr-2"
+                            />
+                            <span className="text-sm">Email Replied</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedNode.data.cancelActions?.includes('link_clicked') || false}
+                              onChange={(e) => {
+                                const actions = selectedNode.data.cancelActions || [];
+                                const newActions = e.target.checked
+                                  ? [...actions, 'link_clicked']
+                                  : actions.filter((a: string) => a !== 'link_clicked');
+                                updateNodeData(selectedNode.id, { cancelActions: newActions });
+                              }}
+                              className="mr-2"
+                            />
+                            <span className="text-sm">Link Clicked</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Show specific link selection if link_clicked is selected */}
+                      {selectedNode.data.cancelActions?.includes('link_clicked') && (
+                        <div className="bg-white rounded-lg p-3 border border-yellow-200">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Specific Link (Optional)
+                          </label>
+                          <select
+                            value={selectedNode.data.specificLink || ''}
+                            onChange={(e) => updateNodeData(selectedNode.id, { specificLink: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Any link</option>
+                            {getLinksForWaitNode(selectedNode.id).map((link, index) => (
+                              <option key={index} value={link}>
+                                {link.length > 40 ? `${link.substring(0, 40)}...` : link}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Links parsed from previous email templates
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="bg-white rounded-lg p-3 border border-yellow-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Description
+                        </label>
+                        <textarea
+                          value={selectedNode.data.description || ''}
+                          onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter task title"
+                          rows={3}
+                          placeholder="Enter description..."
                         />
                       </div>
-                      <div>
+                    </div>
+                  )}
+
+                  {/* ENGAGEMENT TRIGGER NODE PROPERTIES */}
+                  {selectedNode.type === 'engagementTrigger' && (
+                    <div className="space-y-4 bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-lg p-4 shadow-sm">
+                      <div className="border-b border-orange-200 pb-2 mb-3">
+                        <h4 className="font-semibold text-orange-800 text-sm uppercase tracking-wide">Engagement Trigger Configuration</h4>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-orange-200">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Task Platform
+                          Action Type
                         </label>
                         <select
-                          value={selectedNode.data.taskPlatform || ''}
-                          onChange={(e) => updateNodeData(selectedNode.id, { taskPlatform: e.target.value as FlowNodeData['taskPlatform'] })}
+                          value={selectedNode.data.actionType || 'email_replied'}
+                          onChange={(e) => {
+                            const newActionType = e.target.value;
+                            updateNodeData(selectedNode.id, { 
+                              actionType: newActionType as FlowNodeData['actionType'],
+                              label: getEngagementTriggerLabel(newActionType),
+                              condition: getEngagementTriggerLabel(newActionType)
+                            });
+                          }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="">Select platform</option>
-                          <option value="jira">Jira</option>
-                          <option value="linear">Linear</option>
-                          <option value="trello">Trello</option>
-                          <option value="github">GitHub</option>
-                          <option value="clickup">ClickUp</option>
+                          <option value="email_replied">Email Replied</option>
+                          <option value="link_clicked">Link Clicked</option>
+                          <option value="email_opened">Email Opened</option>
                         </select>
+                      </div>
+                      
+                      {selectedNode.data.actionType === 'link_clicked' && (
+                        <div className="bg-white rounded-lg p-3 border border-orange-200">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Specific Link
+                          </label>
+                          <select
+                            value={selectedNode.data.specificLink || ''}
+                            onChange={(e) => updateNodeData(selectedNode.id, { specificLink: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Any link</option>
+                            {getLinksForWaitNode(selectedNode.id).map((link, index) => (
+                              <option key={index} value={link}>
+                                {link.length > 40 ? `${link.substring(0, 40)}...` : link}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Links parsed from email templates
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="bg-white rounded-lg p-3 border border-orange-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Description
+                        </label>
+                        <textarea
+                          value={selectedNode.data.description || ''}
+                          onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          rows={3}
+                          placeholder="Enter description..."
+                        />
                       </div>
                     </div>
                   )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      value={selectedNode.data.description || ''}
-                      onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="Enter description..."
-                    />
+                  {/* TAKE ACTION NODE PROPERTIES */}
+                  {selectedNode.type === 'takeAction' && (
+                    <div className="space-y-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-4 shadow-sm">
+                      <div className="border-b border-blue-200 pb-2 mb-3">
+                        <h4 className="font-semibold text-blue-800 text-sm uppercase tracking-wide">Take Action Configuration</h4>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-blue-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Action Type
+                        </label>
+                        <select
+                          value={selectedNode.data.actionType || 'send_email'}
+                          onChange={(e) => {
+                            const newActionType = e.target.value;
+                            updateNodeData(selectedNode.id, { 
+                              actionType: newActionType as FlowNodeData['actionType'],
+                              label: getTakeActionLabel(newActionType)
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="send_email">Send Email</option>
+                          <option value="create_task">Create Task</option>
+                        </select>
+                      </div>
+
+                      {selectedNode.data.actionType === 'send_email' && (
+                        <div className="bg-white rounded-lg p-3 border border-blue-200">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Template
+                          </label>
+                          <select
+                            value={selectedNode.data.templateId || ''}
+                            onChange={(e) => {
+                              updateNodeData(selectedNode.id, { templateId: e.target.value });
+                              if (e.target.value) {
+                                parseTemplateLinks(e.target.value);
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Select a template</option>
+                            {templates && templates.length > 0 ? (
+                              templates.map((template) => (
+                                <option key={template.id} value={template.id.toString()}>
+                                  {template.name}
+                                </option>
+                              ))
+                            ) : (
+                              <option value="" disabled>No templates available</option>
+                            )}
+                          </select>
+                          {(!templates || templates.length === 0) && (
+                            <p className="text-sm text-orange-600 mt-1">
+                              No templates found. Please create templates first.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {selectedNode.data.actionType === 'create_task' && (
+                        <div className="bg-white rounded-lg p-3 border border-blue-200 space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Task Title
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedNode.data.taskTitle || ''}
+                              onChange={(e) => updateNodeData(selectedNode.id, { taskTitle: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                              placeholder="Enter task title"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Task Platform
+                            </label>
+                            <select
+                              value={selectedNode.data.taskPlatform || ''}
+                              onChange={(e) => updateNodeData(selectedNode.id, { taskPlatform: e.target.value as FlowNodeData['taskPlatform'] })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">Select platform</option>
+                              <option value="jira">Jira</option>
+                              <option value="linear">Linear</option>
+                              <option value="trello">Trello</option>
+                              <option value="github">GitHub</option>
+                              <option value="clickup">ClickUp</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="bg-white rounded-lg p-3 border border-blue-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Description
+                        </label>
+                        <textarea
+                          value={selectedNode.data.description || ''}
+                          onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          rows={3}
+                          placeholder="Enter description..."
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* END NODE PROPERTIES */}
+                  {selectedNode.type === 'end' && (
+                    <div className="space-y-4 bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-lg p-4 shadow-sm">
+                      <div className="border-b border-red-200 pb-2 mb-3">
+                        <h4 className="font-semibold text-red-800 text-sm uppercase tracking-wide">End Node Configuration</h4>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-red-200">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Description
+                        </label>
+                        <textarea
+                          value={selectedNode.data.description || ''}
+                          onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          rows={3}
+                          placeholder="Enter description..."
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Delete button for all node types */}
+                  <div className="pt-4 border-t-2 border-gray-200 bg-gradient-to-r from-red-50 to-pink-50 -m-4 p-4 mt-4">
+                    <button
+                      onClick={() => deleteNode(selectedNode.id)}
+                      className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium shadow-md"
+                    >
+                      Delete Node
+                    </button>
                   </div>
                 </div>
-              )}
-
-              {/* END NODE PROPERTIES */}
-              {selectedNode.type === 'end' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    value={selectedNode.data.description || ''}
-                    onChange={(e) => updateNodeData(selectedNode.id, { description: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    rows={3}
-                    placeholder="Enter description..."
-                  />
-                </div>
-              )}
-
-              {/* Delete button for all node types */}
-              <div className="pt-4 border-t">
-                <button
-                  onClick={() => deleteNode(selectedNode.id)}
-                  className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                >
-                  Delete Node
-                </button>
               </div>
             </div>
           </div>
