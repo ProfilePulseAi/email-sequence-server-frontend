@@ -301,6 +301,7 @@ class ApiService {
     skipDuplicates?: boolean; 
     updateExisting?: boolean;
     validateOnly?: boolean;
+    outreachId?: number;
   }) {
     // Validate file size (10MB limit)
     const maxSize = 10 * 1024 * 1024; // 10MB in bytes

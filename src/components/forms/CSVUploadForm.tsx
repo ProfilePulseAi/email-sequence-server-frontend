@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { apiService } from '@/lib/api';
 
@@ -14,6 +14,13 @@ interface UploadOptions {
   skipDuplicates: boolean;
   updateExisting: boolean;
   validateOnly: boolean;
+  outreachId?: number;
+}
+
+interface OutreachOption {
+  id: number;
+  name: string;
+  isActive?: boolean;
 }
 
 const CSVUploadForm: React.FC<CSVUploadFormProps> = ({
@@ -30,8 +37,51 @@ const CSVUploadForm: React.FC<CSVUploadFormProps> = ({
     validateOnly: false
   });
   const [validationResult, setValidationResult] = useState<any>(null);
+  const [outreaches, setOutreaches] = useState<OutreachOption[]>([]);
+  const [isLoadingOutreaches, setIsLoadingOutreaches] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOutreaches = async () => {
+      setIsLoadingOutreaches(true);
+      try {
+        const outreachList = await apiService.getOutreaches();
+        if (!isMounted) {
+          return;
+        }
+
+        const normalizedOutreaches: OutreachOption[] = Array.isArray(outreachList)
+          ? outreachList
+              .map((outreach: any) => ({
+                id: Number(outreach.id),
+                name: outreach.name,
+                isActive: outreach.isActive,
+              }))
+              .filter((outreach) => Number.isInteger(outreach.id) && outreach.id > 0 && !!outreach.name)
+              .sort((a, b) => a.name.localeCompare(b.name))
+          : [];
+
+        setOutreaches(normalizedOutreaches);
+      } catch {
+        if (isMounted) {
+          toast.error('Failed to load outreach list');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingOutreaches(false);
+        }
+      }
+    };
+
+    loadOutreaches();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const validateFile = (selectedFile: File): string | null => {
     // Check file type
@@ -129,10 +179,19 @@ const CSVUploadForm: React.FC<CSVUploadFormProps> = ({
       return;
     }
 
+    if (!options.outreachId) {
+      toast.error('Please select an outreach program');
+      return;
+    }
+
     setIsUploading(true);
     try {
-      const result = await apiService.uploadClientsCSV(file, options);
-      toast.success(`Successfully processed ${result.processed || 0} clients`);
+      const uploadOptions: UploadOptions = { ...options };
+
+      const result = await apiService.uploadClientsCSV(file, uploadOptions);
+      const processedClients = result.processed || 0;
+      const outreachAssigned = result.outreachAssigned || 0;
+      toast.success(`Successfully processed ${processedClients} clients and added ${outreachAssigned} to outreach`);
       onUploadSuccess?.(result);
       
       // Reset form
@@ -170,7 +229,7 @@ const CSVUploadForm: React.FC<CSVUploadFormProps> = ({
     try {
       await apiService.downloadClientsCSVTemplate();
       toast.success('Template downloaded');
-    } catch (error: any) {
+    } catch {
       toast.error('Failed to download template');
     }
   };
@@ -247,6 +306,39 @@ const CSVUploadForm: React.FC<CSVUploadFormProps> = ({
         <h3 className="text-sm font-medium text-gray-700">Upload Options</h3>
         
         <div className="space-y-3">
+          <div className="space-y-2">
+            <label className="block text-sm text-gray-600">
+              Select outreach program *
+            </label>
+            <select
+              value={options.outreachId ?? ''}
+              onChange={(e) =>
+                setOptions((prev) => ({
+                  ...prev,
+                  outreachId: e.target.value ? Number(e.target.value) : undefined,
+                }))
+              }
+              disabled={isLoadingOutreaches}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+            >
+              <option value="" disabled>Select outreach program</option>
+              {outreaches.map((outreach) => (
+                <option key={outreach.id} value={outreach.id}>
+                  {outreach.name}
+                  {outreach.isActive === false ? ' (Inactive)' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500">
+              Clients from this CSV will be added to the selected outreach right after upload.
+            </p>
+            {!isLoadingOutreaches && outreaches.length === 0 && (
+              <p className="text-xs text-amber-700">
+                No outreach campaigns found. Create one first to enable auto-assignment.
+              </p>
+            )}
+          </div>
+
           <label className="flex items-center space-x-3">
             <input
               type="checkbox"
@@ -340,7 +432,7 @@ const CSVUploadForm: React.FC<CSVUploadFormProps> = ({
         
         <button
           onClick={handleUpload}
-          disabled={!file || isUploading}
+          disabled={!file || isUploading || !options.outreachId || isLoadingOutreaches || outreaches.length === 0}
           className={`flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center ${
             validationResult?.failed === 0 && validationResult?.errors?.length === 0
               ? 'bg-green-600 hover:bg-green-700 ring-2 ring-green-300'
