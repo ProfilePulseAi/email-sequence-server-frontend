@@ -132,12 +132,15 @@ export interface Template {
   id: number;
   name: string;
   description?: string;
+  subject?: string;
   filename: string;
   filePath: string;
   content?: string;
   htmlContent?: string;
   mimeType: string;
   fileSize: number;
+  format?: string;
+  category?: string;
   isActive: boolean;
   userId: number;
   createdAt: Date | string;
