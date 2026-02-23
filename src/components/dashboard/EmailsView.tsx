@@ -22,7 +22,7 @@ interface Email {
   client: {
     firstName: string;
     lastName: string;
-    email: string;
+    emailId: string;
   };
   outreach: {
     name: string;
@@ -88,7 +88,7 @@ export default function EmailsView() {
     const matchesSearch = searchTerm === '' ||
       email.client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       email.client.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.client.emailId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       email.taskName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       email.outreach.name.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -225,11 +225,11 @@ export default function EmailsView() {
                           {email.priority}
                         </span>
                       </div>
+                      {/* <p className="text-sm text-gray-500 truncate">
+                        {email.client.emailId}
+                      </p> */}
                       <p className="text-sm text-gray-500 truncate">
-                        {email.client.email}
-                      </p>
-                      <p className="text-sm text-gray-500 truncate">
-                        {email.id} • {email.outreach.name}
+                        {email.id} • {email.client.emailId}
                       </p>
                       {email.subject && (
                         <p className="text-sm text-gray-700 truncate mt-1">
