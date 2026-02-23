@@ -14,6 +14,130 @@ interface MailboxFormProps {
   onSuccess: () => void;
 }
 
+interface ApiValidationError {
+  property?: string;
+  constraints?: Record<string, string>;
+}
+
+interface ApiErrorData {
+  message?: string;
+  errors?: Array<string | ApiValidationError>;
+}
+
+interface MailboxUpsertPayload {
+  emailId: string;
+  name: string;
+  smtpConfig: {
+    host: string;
+    port: number;
+    secure: boolean;
+    auth: {
+      user: string;
+      pass?: string;
+    };
+  };
+  imapConfig?: {
+    host: string;
+    port: number;
+    auth: {
+      user: string;
+      pass?: string;
+    };
+  };
+  shouldCheckReplies: boolean;
+  sendingProbability: number;
+  replyTo: string;
+  maxEmailsPerDay: number;
+  mailsPer10Mins: number;
+}
+
+const getDefaultMailboxValues = (): Partial<MailBox> => ({
+  emailId: '',
+  name: '',
+  smtpConfig: {
+    host: '',
+    port: 587,
+    secure: false,
+    auth: {
+      user: '',
+      pass: '',
+    },
+  },
+  imapConfig: {
+    host: '',
+    port: 993,
+    auth: {
+      user: '',
+      pass: '',
+    },
+  },
+  shouldCheckReplies: false,
+  sentEmails: 0,
+  failedEmails: 0,
+  sendingProbability: 100,
+  replyTo: '',
+  maxEmailsPerDay: 300,
+  mailsPer10Mins: 2,
+});
+
+const toNumberOrUndefined = (value: unknown): number | undefined => {
+  if (value === '' || value === null || value === undefined) {
+    return undefined;
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const trimString = (value?: string) => (value || '').trim();
+const hasValue = (value?: string) => Boolean(value && value.trim().length > 0);
+
+const hasAnyImapValue = (imapConfig?: MailBox['imapConfig']) => {
+  if (!imapConfig) return false;
+
+  return (
+    hasValue(imapConfig.host) ||
+    hasValue(imapConfig.auth?.user) ||
+    hasValue(imapConfig.auth?.pass)
+  );
+};
+
+const getFormMailboxValues = (mailbox?: MailBox): Partial<MailBox> => {
+  const defaults = getDefaultMailboxValues();
+
+  if (!mailbox) {
+    return defaults;
+  }
+
+  return {
+    ...defaults,
+    ...mailbox,
+    smtpConfig: {
+      ...defaults.smtpConfig,
+      ...mailbox.smtpConfig,
+      auth: {
+        ...defaults.smtpConfig?.auth,
+        ...mailbox.smtpConfig?.auth,
+        pass: '',
+      },
+    },
+    imapConfig: mailbox.imapConfig
+      ? {
+          ...defaults.imapConfig,
+          ...mailbox.imapConfig,
+          auth: {
+            ...defaults.imapConfig?.auth,
+            ...mailbox.imapConfig.auth,
+            pass: '',
+          },
+        }
+      : undefined,
+    mailsPer10Mins: mailbox.mailsPer10Mins ?? defaults.mailsPer10Mins,
+    maxEmailsPerDay: mailbox.maxEmailsPerDay ?? defaults.maxEmailsPerDay,
+    sendingProbability: mailbox.sendingProbability ?? defaults.sendingProbability,
+  };
+};
+
 export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: MailboxFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showJsonImport, setShowJsonImport] = useState(false);
@@ -29,33 +153,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
     watch,
     setValue,
   } = useForm<MailBox>({
-    defaultValues: mailbox || {
-      emailId: '',
-      name: '',
-      smtpConfig: {
-        host: '',
-        port: 587,
-        secure: false,
-        auth: {
-          user: '',
-          pass: '',
-        },
-      },
-      imapConfig: {
-        host: '',
-        port: 993,
-        auth: {
-          user: '',
-          pass: '',
-        },
-      },
-      shouldCheckReplies: false,
-      failedEmails: 0,
-      sendingProbability: 100,
-      replyTo: '',
-      maxEmailsPerDay: 300,
-      mailsPer10Mins: 2,
-    },
+    defaultValues: getFormMailboxValues(mailbox),
   });
 
   const emailId = watch('emailId');
@@ -65,34 +163,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
   // Reset form when mailbox prop changes
   useEffect(() => {
     if (isOpen) {
-      reset(mailbox || {
-        emailId: '',
-        name: '',
-        smtpConfig: {
-          host: '',
-          port: 587,
-          secure: false,
-          auth: {
-            user: '',
-            pass: '',
-          },
-        },
-        imapConfig: {
-          host: '',
-          port: 993,
-          auth: {
-            user: '',
-            pass: '',
-          },
-        },
-        shouldCheckReplies: false,
-        sentEmails: 0,
-        failedEmails: 0,
-        sendingProbability: 100,
-        replyTo: '',
-        maxEmailsPerDay: 300,
-        mailsPer10Mins: 2,
-      });
+      reset(getFormMailboxValues(mailbox));
     }
   }, [mailbox, isOpen, reset]);
 
@@ -121,31 +192,115 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
   const onSubmit = async (data: MailBox) => {
     try {
       setIsSubmitting(true);
-      delete data.sentEmails;
-      delete data.failedEmails;
-      if(!mailbox?.imapConfig?.host) {
-        delete data.imapConfig;
+      const smtpPort = toNumberOrUndefined(data.smtpConfig?.port);
+      const maxEmailsPerDay = toNumberOrUndefined(data.maxEmailsPerDay);
+      const sendingProbability = toNumberOrUndefined(data.sendingProbability);
+      const mailsPer10Mins = toNumberOrUndefined(data.mailsPer10Mins) ?? 2;
+
+      if (smtpPort === undefined || maxEmailsPerDay === undefined || sendingProbability === undefined) {
+        toast.error('Please provide valid numeric values for all required limits.');
+        return;
+      }
+
+      const smtpPassword = trimString(data.smtpConfig?.auth?.pass);
+      if (!smtpPassword && !isEditing) {
+        toast.error('SMTP password is required.');
+        return;
+      }
+
+      const payload: MailboxUpsertPayload = {
+        emailId: trimString(data.emailId),
+        name: trimString(data.name),
+        smtpConfig: {
+          host: trimString(data.smtpConfig?.host),
+          port: smtpPort,
+          secure: Boolean(data.smtpConfig?.secure),
+          auth: {
+            user: trimString(data.smtpConfig?.auth?.user),
+            ...(smtpPassword ? { pass: smtpPassword } : {}),
+          },
+        },
+        shouldCheckReplies: Boolean(data.shouldCheckReplies),
+        sendingProbability,
+        replyTo: trimString(data.replyTo),
+        maxEmailsPerDay,
+        mailsPer10Mins,
+      };
+
+      const imapPort = toNumberOrUndefined(data.imapConfig?.port);
+      const imapPassword = trimString(data.imapConfig?.auth?.pass);
+
+      const imapCandidate = data.imapConfig
+        ? {
+            host: trimString(data.imapConfig.host),
+            port: imapPort,
+            auth: {
+              user: trimString(data.imapConfig.auth?.user),
+              ...(imapPassword ? { pass: imapPassword } : {}),
+            },
+          }
+        : undefined;
+
+      const imapProvided = hasAnyImapValue(
+        imapCandidate
+          ? {
+              host: imapCandidate.host,
+              port: imapCandidate.port ?? 0,
+              auth: {
+                user: imapCandidate.auth.user,
+                pass: imapPassword,
+              },
+            }
+          : undefined,
+      );
+
+      if (payload.shouldCheckReplies && imapProvided) {
+        if (!imapCandidate || imapCandidate.port === undefined) {
+          toast.error('Fill all IMAP fields, or clear them to skip IMAP.');
+          return;
+        }
+
+        const imapCoreComplete =
+          hasValue(imapCandidate.host) &&
+          Boolean(imapCandidate.port) &&
+          hasValue(imapCandidate.auth.user);
+
+        if (!imapCoreComplete) {
+          toast.error('Fill all IMAP fields, or clear them to skip IMAP.');
+          return;
+        }
+
+        if (!imapPassword && !isEditing) {
+          toast.error('IMAP password is required for reply monitoring.');
+          return;
+        }
+
+        payload.imapConfig = {
+          host: imapCandidate.host,
+          port: imapCandidate.port,
+          auth: imapCandidate.auth,
+        };
       }
 
       if (isEditing && mailbox?.id) {
-        await apiService.updateMailbox(mailbox.id, data);
+        await apiService.updateMailbox(mailbox.id, payload);
         toast.success('Mailbox updated successfully');
       } else {
-        await apiService.createMailbox(data);
+        await apiService.createMailbox(payload);
         toast.success('Mailbox created successfully');
       }
       
       onSuccess();
       onClose();
       reset();
-    } catch (error: any) {
-      const errorData = error.response?.data;
+    } catch (error: unknown) {
+      const errorData = (error as { response?: { data?: ApiErrorData } })?.response?.data;
       let message = errorData?.message || 
         `Failed to ${isEditing ? 'update' : 'create'} mailbox configuration`;
       
       // If there are detailed validation errors, include them
       if (errorData?.errors && Array.isArray(errorData.errors)) {
-        const detailedErrors = errorData.errors.map((err: any) => {
+        const detailedErrors = errorData.errors.map((err) => {
           if (typeof err === 'string') return err;
           if (err.property && err.constraints) {
             return `${err.property}: ${Object.values(err.constraints).join(', ')}`;
@@ -203,15 +358,14 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
     try {
       setJsonError('');
       const parsedData = JSON.parse(jsonInput);
+      const smtpPort = toNumberOrUndefined(parsedData?.smtpConfig?.port);
+      const imapPort = toNumberOrUndefined(parsedData?.imapConfig?.port);
+      const maxEmailsPerDay = toNumberOrUndefined(parsedData?.maxEmailsPerDay);
+      const sendingProbability = toNumberOrUndefined(parsedData?.sendingProbability);
+      const mailsPer10Mins = toNumberOrUndefined(parsedData?.mailsPer10Mins);
       
-      // Validate required fields (IMAP is only required if shouldCheckReplies is true)
-      const baseRequiredFields = ['emailId', 'name', 'smtpConfig', 'replyTo', 'maxEmailsPerDay'];
-      let requiredFields = [...baseRequiredFields];
-      
-      // Add IMAP config to required fields only if shouldCheckReplies is true
-      if (parsedData.shouldCheckReplies) {
-        requiredFields.push('imapConfig');
-      }
+      // Validate required fields
+      const requiredFields = ['emailId', 'name', 'smtpConfig', 'replyTo', 'maxEmailsPerDay'];
       
       const missingFields = requiredFields.filter(field => !parsedData[field]);
       
@@ -221,39 +375,44 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
       }
 
       // Validate nested config structures
-      if (!parsedData.smtpConfig.host || !parsedData.smtpConfig.port || !parsedData.smtpConfig.auth) {
+      if (!parsedData.smtpConfig.host || !smtpPort || !parsedData.smtpConfig.auth) {
         setJsonError('Invalid SMTP configuration structure');
         return;
       }
 
-      // Only validate IMAP config if shouldCheckReplies is true
-      if (parsedData.shouldCheckReplies && parsedData.imapConfig) {
-        if (!parsedData.imapConfig.host || !parsedData.imapConfig.port || !parsedData.imapConfig.auth) {
-          setJsonError('Invalid IMAP configuration structure (required when monitoring replies)');
+      // IMAP is optional; validate only when it is provided
+      if (parsedData.imapConfig) {
+        if (!parsedData.imapConfig.host || !imapPort || !parsedData.imapConfig.auth) {
+          setJsonError('Invalid IMAP configuration structure');
           return;
         }
+      }
+
+      if (!maxEmailsPerDay) {
+        setJsonError('maxEmailsPerDay must be a valid number greater than 0.');
+        return;
       }
 
       // Populate form with JSON data
       setValue('emailId', parsedData.emailId);
       setValue('name', parsedData.name);
       setValue('replyTo', parsedData.replyTo);
-      setValue('maxEmailsPerDay', parsedData.maxEmailsPerDay || 300);
-      setValue('sendingProbability', parsedData.sendingProbability || 100);
-      setValue('shouldCheckReplies', parsedData.shouldCheckReplies || false);
-      setValue('mailsPer10Mins', parsedData.mailsPer10Mins || 2);
+      setValue('maxEmailsPerDay', maxEmailsPerDay ?? 300);
+      setValue('sendingProbability', sendingProbability ?? 100);
+      setValue('shouldCheckReplies', Boolean(parsedData.shouldCheckReplies));
+      setValue('mailsPer10Mins', mailsPer10Mins ?? 2);
       
       // SMTP Config
       setValue('smtpConfig.host', parsedData.smtpConfig.host);
-      setValue('smtpConfig.port', parsedData.smtpConfig.port);
-      setValue('smtpConfig.secure', parsedData.smtpConfig.secure || false);
+      setValue('smtpConfig.port', smtpPort ?? 587);
+      setValue('smtpConfig.secure', Boolean(parsedData.smtpConfig.secure));
       setValue('smtpConfig.auth.user', parsedData.smtpConfig.auth.user);
       setValue('smtpConfig.auth.pass', parsedData.smtpConfig.auth.pass);
       
-      // IMAP Config (only set if shouldCheckReplies is true)
-      if (parsedData.shouldCheckReplies && parsedData.imapConfig) {
+      // IMAP Config (optional)
+      if (parsedData.imapConfig) {
         setValue('imapConfig.host', parsedData.imapConfig.host);
-        setValue('imapConfig.port', parsedData.imapConfig.port);
+        setValue('imapConfig.port', imapPort ?? 993);
         setValue('imapConfig.auth.user', parsedData.imapConfig.auth.user);
         setValue('imapConfig.auth.pass', parsedData.imapConfig.auth.pass);
       }
@@ -261,7 +420,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
       setShowJsonImport(false);
       setJsonInput('');
       toast.success('Configuration imported successfully!');
-    } catch (error) {
+    } catch {
       setJsonError('Invalid JSON format. Please check your input.');
     }
   };
@@ -497,6 +656,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
                 id="smtpPort"
                 {...register('smtpConfig.port', { 
                   required: 'SMTP port is required',
+                  setValueAs: (value) => toNumberOrUndefined(value),
                   min: { value: 1, message: 'Port must be greater than 0' },
                   max: { value: 65535, message: 'Port must be less than 65536' }
                 })}
@@ -568,14 +728,12 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="sm:col-span-2">
                 <label htmlFor="imapHost" className="block text-sm font-medium text-gray-700">
-                  IMAP Host *
+                  IMAP Host
                 </label>
                 <input
                   type="text"
                   id="imapHost"
-                  {...register('imapConfig.host', { 
-                    required: shouldCheckReplies ? 'IMAP host is required when monitoring replies' : false 
-                  })}
+                  {...register('imapConfig.host')}
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder="e.g., imap.gmail.com"
                 />
@@ -586,13 +744,13 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
 
               <div>
                 <label htmlFor="imapPort" className="block text-sm font-medium text-gray-700">
-                  IMAP Port *
+                  IMAP Port
                 </label>
                 <input
                   type="number"
                   id="imapPort"
                   {...register('imapConfig.port', { 
-                    required: shouldCheckReplies ? 'IMAP port is required when monitoring replies' : false,
+                    setValueAs: (value) => toNumberOrUndefined(value),
                     min: { value: 1, message: 'Port must be greater than 0' },
                     max: { value: 65535, message: 'Port must be less than 65536' }
                   })}
@@ -608,14 +766,12 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="imapUser" className="block text-sm font-medium text-gray-700">
-                  IMAP Username *
+                  IMAP Username
                 </label>
                 <input
                   type="text"
                   id="imapUser"
-                  {...register('imapConfig.auth.user', { 
-                    required: shouldCheckReplies ? 'IMAP username is required when monitoring replies' : false 
-                  })}
+                  {...register('imapConfig.auth.user')}
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder="Usually your email address"
                 />
@@ -626,14 +782,12 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
 
               <div>
                 <label htmlFor="imapPass" className="block text-sm font-medium text-gray-700">
-                  IMAP Password *
+                  IMAP Password
                 </label>
                 <input
                   type="password"
                   id="imapPass"
-                  {...register('imapConfig.auth.pass', { 
-                    required: shouldCheckReplies && !isEditing ? 'IMAP password is required when monitoring replies' : false 
-                  })}
+                  {...register('imapConfig.auth.pass')}
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   placeholder={isEditing ? "Leave blank to keep current" : "App password or regular password"}
                 />
@@ -659,6 +813,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
                 id="maxEmailsPerDay"
                 {...register('maxEmailsPerDay', { 
                   required: 'Max emails per day is required',
+                  setValueAs: (value) => toNumberOrUndefined(value),
                   min: { value: 1, message: 'Must be at least 1' },
                   max: { value: 1000, message: 'Must be less than 1000' }
                 })}
@@ -679,6 +834,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
                 id="sendingProbability"
                 {...register('sendingProbability', { 
                   required: 'Sending probability is required',
+                  setValueAs: (value) => toNumberOrUndefined(value),
                   min: { value: 1, message: 'Must be at least 1%' },
                   max: { value: 100, message: 'Must be at most 100%' }
                 })}
@@ -698,6 +854,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
                 type="number"
                 id="mailsPer10Mins"
                 {...register('mailsPer10Mins', { 
+                  setValueAs: (value) => toNumberOrUndefined(value),
                   min: { value: 1, message: 'Must be at least 1' },
                   max: { value: 50, message: 'Must be less than 50' }
                 })}

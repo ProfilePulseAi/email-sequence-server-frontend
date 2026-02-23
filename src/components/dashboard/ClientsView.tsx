@@ -70,6 +70,7 @@ export default function ClientsView() {
     }
   };
 
+  console.log('Clients data:', clients);
   const filteredClients = clients.filter(client =>
     client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||

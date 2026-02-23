@@ -208,7 +208,7 @@ export default function OutreachFlowBuilder({
     
     try {
       const templateContent = await apiService.getTemplateContent(parseInt(templateId));
-      const htmlContent = templateContent.htmlContent || '';
+      const htmlContent = templateContent.content || templateContent.htmlContent || '';
       
       // Parse href attributes from the HTML content
       const hrefRegex = /href=["']([^"']*)["']/gi;

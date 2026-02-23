@@ -134,6 +134,8 @@ export interface Template {
   description?: string;
   filename: string;
   filePath: string;
+  content?: string;
+  htmlContent?: string;
   mimeType: string;
   fileSize: number;
   isActive: boolean;
@@ -144,6 +146,7 @@ export interface Template {
 
 export interface TemplateContent {
   content: string;
+  htmlContent?: string;
   template: Template;
 }
 

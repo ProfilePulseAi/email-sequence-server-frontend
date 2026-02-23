@@ -9,21 +9,34 @@ import {
   EyeIcon,
   DocumentTextIcon,
   CodeBracketIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
-import { Template, TemplateContent } from '@/types';
+import { Template, MailBox } from '@/types';
 import { useTemplates } from '@/hooks/useTemplates';
+import { apiService } from '@/lib/api';
+import { toast } from 'react-hot-toast';
 
 export default function TemplatesView() {
   const router = useRouter();
   const { templates, loading, deleteTemplate, getTemplateContent } = useTemplates();
+
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [sendTestModalOpen, setSendTestModalOpen] = useState(false);
+
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [previewContent, setPreviewContent] = useState<string>('');
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Send test email state
+  const [testEmail, setTestEmail] = useState('');
+  const [testMailboxId, setTestMailboxId] = useState<number | ''>('');
+  const [mailboxes, setMailboxes] = useState<MailBox[]>([]);
+  const [loadingMailboxes, setLoadingMailboxes] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
 
   const handleDeleteTemplate = async (template: Template) => {
     try {
@@ -43,12 +56,58 @@ export default function TemplatesView() {
 
     try {
       const contentData = await getTemplateContent(template.id);
-      setPreviewContent(contentData.content);
+      setPreviewContent(contentData.content || contentData.htmlContent || '');
     } catch (error) {
       console.error('Error loading template content:', error);
       setPreviewContent('Error loading content');
     } finally {
       setLoadingPreview(false);
+    }
+  };
+
+  const handleOpenSendTest = async (template: Template) => {
+    setSelectedTemplate(template);
+    setTestEmail('');
+    setTestMailboxId('');
+    setSendTestModalOpen(true);
+    setLoadingMailboxes(true);
+    try {
+      const data = await apiService.getMailboxes();
+      setMailboxes(data);
+    } catch (error) {
+      console.error('Error fetching mailboxes:', error);
+      toast.error('Failed to load mailboxes');
+    } finally {
+      setLoadingMailboxes(false);
+    }
+  };
+
+  const handleSendTest = async () => {
+    if (!selectedTemplate) return;
+    if (!testEmail) {
+      toast.error('Please enter a recipient email address');
+      return;
+    }
+    if (!testMailboxId) {
+      toast.error('Please select a mailbox');
+      return;
+    }
+
+    setSendingTest(true);
+    try {
+      await apiService.sendTemplateTestEmail({
+        email: testEmail,
+        mailboxId: testMailboxId as number,
+        templateId: selectedTemplate.id,
+      });
+      toast.success(`Test email sent to ${testEmail}`);
+      setSendTestModalOpen(false);
+      setSelectedTemplate(null);
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to send test email';
+      toast.error(message);
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -165,6 +224,14 @@ export default function TemplatesView() {
                   Preview
                 </button>
                 <button
+                  onClick={() => handleOpenSendTest(template)}
+                  className="bg-green-100 text-green-700 px-3 py-2 rounded text-sm hover:bg-green-200 flex items-center gap-1"
+                  title="Send test email"
+                >
+                  <PaperAirplaneIcon className="h-4 w-4" />
+                  Test
+                </button>
+                <button
                   onClick={() => router.push(`/dashboard/templates/${template.id}/edit`)}
                   className="bg-blue-100 text-blue-700 px-3 py-2 rounded text-sm hover:bg-blue-200 flex items-center gap-1"
                 >
@@ -263,7 +330,7 @@ export default function TemplatesView() {
                 )}
               </div>
             </div>
-            
+
             <div className="border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
               <h4 className="font-medium text-gray-700 mb-2">HTML Content:</h4>
               {loadingPreview ? (
@@ -274,6 +341,110 @@ export default function TemplatesView() {
               ) : (
                 <div dangerouslySetInnerHTML={{ __html: previewContent }} />
               )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Send Test Email Modal */}
+      <Modal
+        isOpen={sendTestModalOpen}
+        onClose={() => {
+          setSendTestModalOpen(false);
+          setSelectedTemplate(null);
+          setTestEmail('');
+          setTestMailboxId('');
+        }}
+        title="Send Test Email"
+        size="sm"
+      >
+        {selectedTemplate && (
+          <div>
+            <p className="text-sm text-gray-600 mb-4">
+              Send a preview of <span className="font-medium text-gray-900">{selectedTemplate.name}</span> to
+              any inbox. Template variables will use placeholder values.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Recipient email
+                </label>
+                <input
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Send from (mailbox)
+                </label>
+                {loadingMailboxes ? (
+                  <div className="flex items-center gap-2 py-2 text-sm text-gray-500">
+                    <LoadingSpinner />
+                    <span>Loading mailboxes…</span>
+                  </div>
+                ) : mailboxes.length === 0 ? (
+                  <p className="text-sm text-red-600">
+                    No mailboxes configured.{' '}
+                    <button
+                      onClick={() => router.push('/dashboard/mailbox')}
+                      className="underline"
+                    >
+                      Add one here.
+                    </button>
+                  </p>
+                ) : (
+                  <select
+                    value={testMailboxId}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setTestMailboxId(value ? Number(value) : '');
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                  >
+                    <option value="">Select a mailbox…</option>
+                    {mailboxes.map((mb) => (
+                      <option key={mb.id} value={mb.id}>
+                        {mb.name} ({mb.emailId})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setSendTestModalOpen(false);
+                  setSelectedTemplate(null);
+                }}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendTest}
+                disabled={sendingTest || loadingMailboxes || mailboxes.length === 0}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+              >
+                {sendingTest ? (
+                  <>
+                    <LoadingSpinner />
+                    Sending…
+                  </>
+                ) : (
+                  <>
+                    <PaperAirplaneIcon className="h-4 w-4" />
+                    Send Test Email
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}

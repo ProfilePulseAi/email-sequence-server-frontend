@@ -8,8 +8,8 @@ export interface UseTemplatesReturn {
   templates: Template[];
   loading: boolean;
   error: string | null;
-  createTemplate: (data: { name: string; description?: string; htmlContent: string }) => Promise<any>;
-  updateTemplate: (id: number, data: { name?: string; description?: string; isActive?: boolean }) => Promise<Template>;
+  createTemplate: (data: { name: string; description?: string; htmlContent?: string; content?: string }) => Promise<any>;
+  updateTemplate: (id: number, data: { name?: string; description?: string; isActive?: boolean; htmlContent?: string; content?: string }) => Promise<Template>;
   deleteTemplate: (id: number) => Promise<void>;
   getTemplate: (id: number) => Promise<Template>;
   getTemplateContent: (id: number) => Promise<TemplateContent>;
@@ -66,7 +66,7 @@ export function useTemplates(): UseTemplatesReturn {
     }
   };
 
-  const createTemplate = async (data: { name: string; description?: string; htmlContent: string }) => {
+  const createTemplate = async (data: { name: string; description?: string; htmlContent?: string; content?: string }) => {
     try {
       const result = await apiService.createTemplate(data);
       await fetchTemplates(); // Refresh the list
@@ -77,7 +77,7 @@ export function useTemplates(): UseTemplatesReturn {
     }
   };
 
-  const updateTemplate = async (id: number, data: { name?: string; description?: string; isActive?: boolean }): Promise<Template> => {
+  const updateTemplate = async (id: number, data: { name?: string; description?: string; isActive?: boolean; htmlContent?: string; content?: string }): Promise<Template> => {
     try {
       const updatedTemplate = await apiService.updateTemplate(id, data);
       setTemplates(prev => prev.map(t => t.id === id ? updatedTemplate : t));
@@ -110,8 +110,11 @@ export function useTemplates(): UseTemplatesReturn {
 
   const getTemplateContent = async (id: number): Promise<TemplateContent> => {
     try {
-      const content = await apiService.getTemplateContent(id);
-      return content;
+      const contentResponse = await apiService.getTemplateContent(id) as TemplateContent;
+      return {
+        ...contentResponse,
+        content: contentResponse.content ?? contentResponse.htmlContent ?? '',
+      };
     } catch (err) {
       console.error('Error fetching template content:', err);
       throw err;

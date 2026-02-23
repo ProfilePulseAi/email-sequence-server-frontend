@@ -1,4 +1,3 @@
-import { MailBox } from '@/types';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import Cookies from 'js-cookie';
 import { toast } from 'react-hot-toast';
@@ -117,6 +116,79 @@ class ApiService {
     });
     
     this.failedQueue = [];
+  }
+
+  private toNumber(value: unknown): number | undefined {
+    if (value === '' || value === null || value === undefined) {
+      return undefined;
+    }
+
+    const parsed = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  private sanitizeMailboxPayload(mailboxData: any): Record<string, unknown> {
+    const payload: any = {
+      ...mailboxData,
+      smtpConfig: mailboxData.smtpConfig
+        ? {
+            ...mailboxData.smtpConfig,
+            auth: mailboxData.smtpConfig.auth
+              ? { ...mailboxData.smtpConfig.auth }
+              : undefined,
+          }
+        : undefined,
+      imapConfig: mailboxData.imapConfig
+        ? {
+            ...mailboxData.imapConfig,
+            auth: mailboxData.imapConfig.auth
+              ? { ...mailboxData.imapConfig.auth }
+              : undefined,
+          }
+        : undefined,
+    };
+
+    delete payload.id;
+    delete payload.userId;
+    delete payload.sentEmails;
+    delete payload.failedEmails;
+    delete payload.scheduledCount;
+    delete payload.createdAt;
+    delete payload.updatedAt;
+
+    const maxEmailsPerDay = this.toNumber(payload.maxEmailsPerDay);
+    if (maxEmailsPerDay !== undefined) payload.maxEmailsPerDay = maxEmailsPerDay;
+
+    const mailsPer10Mins = this.toNumber(payload.mailsPer10Mins);
+    if (mailsPer10Mins !== undefined) payload.mailsPer10Mins = mailsPer10Mins;
+
+    const sendingProbability = this.toNumber(payload.sendingProbability);
+    if (sendingProbability !== undefined) payload.sendingProbability = sendingProbability;
+
+    const smtpPort = this.toNumber(payload.smtpConfig?.port);
+    if (smtpPort !== undefined && payload.smtpConfig) payload.smtpConfig.port = smtpPort;
+
+    const imapPort = this.toNumber(payload.imapConfig?.port);
+    if (imapPort !== undefined && payload.imapConfig) payload.imapConfig.port = imapPort;
+
+    if (payload.smtpConfig?.auth?.pass === '') {
+      delete payload.smtpConfig.auth.pass;
+    }
+
+    if (payload.imapConfig?.auth?.pass === '') {
+      delete payload.imapConfig.auth.pass;
+    }
+
+    const hasImapData = Boolean(
+      payload.imapConfig?.host ||
+      payload.imapConfig?.auth?.user ||
+      payload.imapConfig?.auth?.pass,
+    );
+    if (!hasImapData) {
+      delete payload.imapConfig;
+    }
+
+    return payload;
   }
 
   // Auth endpoints
@@ -312,6 +384,11 @@ class ApiService {
     return response.data;
   }
 
+  async sendTemplateTestEmail(data: { email: string; mailboxId: number; templateId: number }) {
+    const response = await this.api.post('/email/send-test', data);
+    return response.data;
+  }
+
   async sendScheduledEmails() {
     const response = await this.api.get('/email/schedule/email');
     return response.data;
@@ -360,26 +437,12 @@ class ApiService {
   }
 
   async createMailbox(mailboxData: any) {
-    const response = await this.api.post('/mailbox', mailboxData);
+    const response = await this.api.post('/mailbox', this.sanitizeMailboxPayload(mailboxData));
     return response.data;
   }
 
-  async updateMailbox(id: number, mailboxData: MailBox) {
-    // Remove sentEmails from mailboxData if it exists
-    if (mailboxData.sentEmails) {
-      delete mailboxData.sentEmails;
-    }
-    if (mailboxData.createdAt) {
-      delete mailboxData.createdAt;
-    }
-    if (mailboxData.updatedAt) {
-      delete mailboxData.updatedAt;
-    }
-    if (mailboxData.scheduledCount || mailboxData.scheduledCount === 0) {
-      delete mailboxData.scheduledCount;
-    }
-    
-    const response = await this.api.put(`/mailbox/${id}`, mailboxData);
+  async updateMailbox(id: number, mailboxData: any) {
+    const response = await this.api.put(`/mailbox/${id}`, this.sanitizeMailboxPayload(mailboxData));
     return response.data;
   }
 
@@ -401,11 +464,11 @@ class ApiService {
     return this.request({ method: 'GET', url: `/templates/${id}/content` });
   }
 
-  async createTemplate(data: { name: string; description?: string; htmlContent: string }) {
+  async createTemplate(data: { name: string; description?: string; htmlContent?: string; content?: string }) {
     return this.request({ method: 'POST', url: '/templates', data });
   }
 
-  async updateTemplate(id: number, data: { name?: string; description?: string; isActive?: boolean }) {
+  async updateTemplate(id: number, data: { name?: string; description?: string; isActive?: boolean; htmlContent?: string; content?: string }) {
     return this.request({ method: 'PUT', url: `/templates/${id}`, data });
   }
 

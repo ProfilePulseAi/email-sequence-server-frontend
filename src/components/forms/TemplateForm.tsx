@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Template, TemplateContent } from '@/types';
+import { Template } from '@/types';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { SAMPLE_TEMPLATES, TEMPLATE_VARIABLES } from '@/lib/templates';
 import { useTemplates } from '@/hooks/useTemplates';
@@ -50,7 +50,7 @@ export default function TemplateForm({ template, onSuccess }: TemplateFormProps)
       const contentData = await getTemplateContent(template.id);
       setFormData(prev => ({
         ...prev,
-        htmlContent: contentData.content,
+        htmlContent: contentData.content || contentData.htmlContent || '',
       }));
     } catch (error) {
       console.error('Error loading template content:', error);
@@ -75,6 +75,7 @@ export default function TemplateForm({ template, onSuccess }: TemplateFormProps)
         await updateTemplate(template.id, {
           name: templateData.name,
           description: templateData.description,
+          htmlContent: templateData.htmlContent,
           isActive: formData.isActive,
         });
       } else {
