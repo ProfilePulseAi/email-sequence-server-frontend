@@ -39,7 +39,7 @@ export default function DashboardOverview() {
     replyRate: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [emailData, setEmailData] = useState([]);
+  const [emailData, setEmailData] = useState<{ name: string; emails: number }[]>([]);
 
   useEffect(() => {
     fetchDashboardData();

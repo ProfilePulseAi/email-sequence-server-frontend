@@ -211,7 +211,7 @@ export default function TemplatesView() {
               </div>
 
               <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                <span>{formatFileSize(template.fileSize)}</span>
+                <span>{formatFileSize(template.fileSize ?? 0)}</span>
                 <span>{formatDate(template.createdAt)}</span>
               </div>
 
@@ -316,7 +316,7 @@ export default function TemplatesView() {
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">File Size:</span>
-                  <span className="ml-2 text-gray-900">{formatFileSize(selectedTemplate.fileSize)}</span>
+                  <span className="ml-2 text-gray-900">{formatFileSize(selectedTemplate.fileSize ?? 0)}</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">Created:</span>

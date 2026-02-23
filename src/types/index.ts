@@ -133,14 +133,16 @@ export interface Template {
   name: string;
   description?: string;
   subject?: string;
-  filename: string;
-  filePath: string;
+  filename?: string;
+  filePath?: string;
   content?: string;
   htmlContent?: string;
-  mimeType: string;
-  fileSize: number;
+  mimeType?: string;
+  fileSize?: number;
   format?: string;
   category?: string;
+  tags?: string[];
+  usageCount?: number;
   isActive: boolean;
   userId: number;
   createdAt: Date | string;
@@ -306,7 +308,7 @@ export interface OutreachFlow {
 }
 
 // Service Configuration Types
-export type Platform = 'jira' | 'linear' | 'trello' | 'github' | 'clickup';
+export type Platform = 'jira' | 'linear' | 'trello' | 'github' | 'clickup' | 'slack' | 'discord';
 
 export interface ServiceConfig {
   id: number;

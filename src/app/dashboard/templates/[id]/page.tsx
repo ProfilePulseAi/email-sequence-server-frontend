@@ -109,7 +109,7 @@ export default function TemplatePreviewPage() {
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Content Preview</h3>
           <div className="border border-gray-200 rounded-lg p-4 min-h-64 bg-gray-50">
-            {renderContent(template.content, template.format)}
+            {renderContent(template.content ?? '', (template.format as 'html' | 'markdown') ?? 'html')}
           </div>
         </div>
       </div>

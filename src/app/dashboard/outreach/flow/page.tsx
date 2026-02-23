@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import OutreachFlowBuilder from '@/components/outreach/OutreachFlowBuilder';
@@ -8,7 +9,7 @@ import { apiService } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
-export default function OutreachFlowPage() {
+function OutreachFlowPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [outreach, setOutreach] = useState<OutreachDto | undefined>();
@@ -125,5 +126,18 @@ export default function OutreachFlowPage() {
         onChange={handleDataChange}
       />
     </div>
+  );
+}
+
+export default function OutreachFlowPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner />
+        <span className="ml-2 text-gray-600">Loading flow builder...</span>
+      </div>
+    }>
+      <OutreachFlowPageContent />
+    </Suspense>
   );
 }

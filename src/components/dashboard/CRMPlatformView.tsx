@@ -20,7 +20,9 @@ const PLATFORM_ICONS = {
   linear: '🟣',
   trello: '🔷',
   github: '⚫',
-  clickup: '🟡'
+  clickup: '🟡',
+  slack: '🟢',
+  discord: '🔮'
 };
 
 const PLATFORM_NAMES = {
@@ -28,7 +30,9 @@ const PLATFORM_NAMES = {
   linear: 'Linear',
   trello: 'Trello',
   github: 'GitHub',
-  clickup: 'ClickUp'
+  clickup: 'ClickUp',
+  slack: 'Slack',
+  discord: 'Discord'
 };
 
 export default function CRMPlatformView() {
