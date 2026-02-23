@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { apiService } from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import { formatDateTime, getEmailStateColor, getPriorityColor } from '@/lib/utils';
+import { formatDateTime, formatDateTimeTs, getEmailStateColor, getPriorityColor } from '@/lib/utils';
 import { 
   EnvelopeIcon,
   EyeIcon,
@@ -33,6 +33,7 @@ interface Email {
   replied: boolean;
   subject?: string;
   createdAt: string;
+  scheduled10minInterval: string;
 }
 
 export default function EmailsView() {
@@ -228,7 +229,7 @@ export default function EmailsView() {
                         {email.client.email}
                       </p>
                       <p className="text-sm text-gray-500 truncate">
-                        {email.taskName} • {email.outreach.name}
+                        {email.id} • {email.outreach.name}
                       </p>
                       {email.subject && (
                         <p className="text-sm text-gray-700 truncate mt-1">
@@ -256,7 +257,7 @@ export default function EmailsView() {
                       )}
                     </div>
                     <p className="text-xs text-gray-500">
-                      {email.deliveryTime ? formatDateTime(email.deliveryTime) : formatDateTime(email.createdAt)}
+                      {email.deliveryTime ? formatDateTime(email.deliveryTime) : formatDateTimeTs(email.scheduled10minInterval)}
                     </p>
                   </div>
                 </div>

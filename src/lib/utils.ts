@@ -22,6 +22,26 @@ export function formatDateTime(date: Date | string) {
   });
 }
 
+export function formatDateTimeTs(date: number | string) {
+  // convert timestamp (ms) to local date/time string
+  // Accept both numbers and numeric strings, fallback to 0 if invalid.
+  const timestamp = typeof date === 'number' ? date : Number(date);
+  const localDate = new Date(timestamp);
+
+  // If conversion failed, return a placeholder rather than 'Invalid Date'
+  if (isNaN(localDate.getTime())) {
+    return 'Invalid date';
+  }
+
+  return localDate.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function getInitials(firstName?: string, lastName?: string) {
   if (!firstName && !lastName) return '?';
   return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
