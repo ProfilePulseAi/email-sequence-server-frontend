@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiService } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { formatDateTime, formatDateTimeTs, getEmailStateColor, getPriorityColor } from '@/lib/utils';
-import { 
+import {
   EnvelopeIcon,
   EyeIcon,
   ArrowPathIcon,
   CheckIcon,
   XMarkIcon,
   PlayIcon,
-  PauseIcon
+  CursorArrowRaysIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 interface Email {
@@ -25,16 +26,88 @@ interface Email {
     emailId: string;
   };
   outreach: {
+    id?: number;
     name: string;
+    stateList?: Array<{
+      name?: string;
+    }>;
   };
+  outreachStateId: number;
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   deliveryTime?: string;
   opened: boolean;
   replied: boolean;
+  openedEmail?: {
+    count: number;
+    openedAt: string;
+  };
+  clicked?: Array<{
+    url: string;
+    clickedAt: string;
+  }>;
   subject?: string;
   createdAt: string;
   scheduled10minInterval: string;
 }
+
+interface FunnelRow {
+  key: string;
+  outreachName: string;
+  stageLabel: string;
+  stageIndex: number;
+  total: number;
+  sent: number;
+  openedEmails: number;
+  openEvents: number;
+  clickedEmails: number;
+  clickEvents: number;
+  replied: number;
+  failed: number;
+  scheduled: number;
+}
+
+const getOpenedCount = (email: Email): number => {
+  if (typeof email.openedEmail?.count === 'number') {
+    return email.openedEmail.count;
+  }
+  return email.opened ? 1 : 0;
+};
+
+const isOpened = (email: Email): boolean => {
+  return getOpenedCount(email) > 0;
+};
+
+const getClickedCount = (email: Email): number => {
+  return Array.isArray(email.clicked) ? email.clicked.length : 0;
+};
+
+const getLastClickedAt = (email: Email): string | undefined => {
+  if (!Array.isArray(email.clicked) || email.clicked.length === 0) {
+    return undefined;
+  }
+
+  const lastClickedEvent = email.clicked.reduce((latest, current) => {
+    if (!latest) {
+      return current;
+    }
+    return new Date(current.clickedAt).getTime() > new Date(latest.clickedAt).getTime() ? current : latest;
+  });
+
+  return lastClickedEvent?.clickedAt;
+};
+
+const getStageLabel = (email: Email): string => {
+  const stageName = email.outreach?.stateList?.[email.outreachStateId]?.name;
+  if (stageName && stageName.trim().length > 0) {
+    return stageName;
+  }
+
+  if (email.outreachStateId === 0) {
+    return 'Initial Stage';
+  }
+
+  return `Stage ${email.outreachStateId + 1}`;
+};
 
 export default function EmailsView() {
   const [emails, setEmails] = useState<Email[]>([]);
@@ -63,7 +136,7 @@ export default function EmailsView() {
     try {
       await apiService.sendScheduledEmails();
       toast.success('Scheduled emails sent successfully!');
-      fetchEmails(); // Refresh the list
+      fetchEmails();
     } catch (error) {
       toast.error('Failed to send scheduled emails');
     }
@@ -73,33 +146,134 @@ export default function EmailsView() {
     try {
       await apiService.checkEmails();
       toast.success('Email delivery status checked!');
-      fetchEmails(); // Refresh the list
+      fetchEmails();
     } catch (error) {
       toast.error('Failed to check email status');
     }
   };
 
-  const filteredEmails = emails.filter(email => {
-    const matchesFilter = filter === 'all' || 
-      (filter === 'scheduled' && email.state === 'SCHEDULE') ||
-      (filter === 'delivered' && email.state === 'DELIVERED') ||
-      (filter === 'failed' && email.state === 'FAILED');
-    
-    const matchesSearch = searchTerm === '' ||
-      email.client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.client.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.client.emailId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.taskName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.outreach.name.toLowerCase().includes(searchTerm.toLowerCase());
+  const summary = useMemo(() => {
+    const total = emails.length;
+    const scheduled = emails.filter((email) => email.state === 'SCHEDULE').length;
+    const delivered = emails.filter((email) => email.state === 'DELIVERED').length;
+    const failed = emails.filter((email) => email.state === 'FAILED').length;
+    const openedEmails = emails.filter((email) => isOpened(email)).length;
+    const clickedEmails = emails.filter((email) => getClickedCount(email) > 0).length;
+    const openRate = delivered > 0 ? Math.round((openedEmails / delivered) * 100) : 0;
+    const clickRate = delivered > 0 ? Math.round((clickedEmails / delivered) * 100) : 0;
 
-    return matchesFilter && matchesSearch;
-  });
+    return {
+      total,
+      scheduled,
+      delivered,
+      failed,
+      openedEmails,
+      clickedEmails,
+      openRate,
+      clickRate,
+    };
+  }, [emails]);
 
-  const getStatusIcon = (state: string, opened: boolean, replied: boolean) => {
-    if (replied) return <CheckIcon className="h-5 w-5 text-green-500" />;
-    if (opened) return <EyeIcon className="h-5 w-5 text-blue-500" />;
-    if (state === 'DELIVERED') return <CheckIcon className="h-5 w-5 text-green-500" />;
-    if (state === 'FAILED') return <XMarkIcon className="h-5 w-5 text-red-500" />;
+  const filteredEmails = useMemo(
+    () =>
+      emails.filter((email) => {
+        const firstName = email.client?.firstName || '';
+        const lastName = email.client?.lastName || '';
+        const clientEmail = email.client?.emailId || '';
+        const taskName = email.taskName || '';
+        const outreachName = email.outreach?.name || '';
+        const matchesFilter =
+          filter === 'all' ||
+          (filter === 'scheduled' && email.state === 'SCHEDULE') ||
+          (filter === 'delivered' && email.state === 'DELIVERED') ||
+          (filter === 'failed' && email.state === 'FAILED');
+
+        const stageLabel = getStageLabel(email).toLowerCase();
+        const matchesSearch =
+          searchTerm === '' ||
+          firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          clientEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          taskName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          outreachName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          stageLabel.includes(searchTerm.toLowerCase());
+
+        return matchesFilter && matchesSearch;
+      }),
+    [emails, filter, searchTerm],
+  );
+
+  const funnelRows = useMemo(() => {
+    const stageMap = new Map<string, FunnelRow>();
+
+    for (const email of emails) {
+      const outreachName = email.outreach?.name || 'Untitled Outreach';
+      const stageIndex = email.outreachStateId ?? 0;
+      const stageLabel = getStageLabel(email);
+      const key = `${outreachName}::${stageIndex}`;
+
+      if (!stageMap.has(key)) {
+        stageMap.set(key, {
+          key,
+          outreachName,
+          stageLabel,
+          stageIndex,
+          total: 0,
+          sent: 0,
+          openedEmails: 0,
+          openEvents: 0,
+          clickedEmails: 0,
+          clickEvents: 0,
+          replied: 0,
+          failed: 0,
+          scheduled: 0,
+        });
+      }
+
+      const row = stageMap.get(key)!;
+      const openedCount = getOpenedCount(email);
+      const clickedCount = getClickedCount(email);
+
+      row.total += 1;
+      row.openEvents += openedCount;
+      row.clickEvents += clickedCount;
+
+      if (email.state === 'DELIVERED') {
+        row.sent += 1;
+      }
+      if (email.state === 'FAILED') {
+        row.failed += 1;
+      }
+      if (email.state === 'SCHEDULE') {
+        row.scheduled += 1;
+      }
+      if (openedCount > 0) {
+        row.openedEmails += 1;
+      }
+      if (clickedCount > 0) {
+        row.clickedEmails += 1;
+      }
+      if (email.replied) {
+        row.replied += 1;
+      }
+    }
+
+    return Array.from(stageMap.values()).sort((a, b) => {
+      const outreachSort = a.outreachName.localeCompare(b.outreachName);
+      if (outreachSort !== 0) {
+        return outreachSort;
+      }
+      return a.stageIndex - b.stageIndex;
+    });
+  }, [emails]);
+
+  const getStatusIcon = (email: Email) => {
+    const clickedCount = getClickedCount(email);
+    if (email.replied) return <CheckIcon className="h-5 w-5 text-green-500" />;
+    if (clickedCount > 0) return <CursorArrowRaysIcon className="h-5 w-5 text-purple-500" />;
+    if (isOpened(email)) return <EyeIcon className="h-5 w-5 text-blue-500" />;
+    if (email.state === 'DELIVERED') return <CheckIcon className="h-5 w-5 text-green-500" />;
+    if (email.state === 'FAILED') return <XMarkIcon className="h-5 w-5 text-red-500" />;
     return <EnvelopeIcon className="h-5 w-5 text-gray-500" />;
   };
 
@@ -134,15 +308,10 @@ export default function EmailsView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="md:flex md:items-center md:justify-between">
         <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-            Email Management
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Manage and track your email sequences
-          </p>
+          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">Email Management</h2>
+          <p className="mt-1 text-sm text-gray-500">Manage and track your email sequences</p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4 space-x-3">
           <button
@@ -162,20 +331,111 @@ export default function EmailsView() {
         </div>
       </div>
 
-      {/* Filters and Search */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <p className="text-sm font-medium text-gray-500">Total</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">{summary.total}</p>
+          </div>
+        </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <p className="text-sm font-medium text-gray-500">Delivered</p>
+            <p className="mt-1 text-2xl font-semibold text-green-700">{summary.delivered}</p>
+          </div>
+        </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <p className="text-sm font-medium text-gray-500">Opened</p>
+            <p className="mt-1 text-2xl font-semibold text-blue-700">{summary.openedEmails}</p>
+          </div>
+        </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <p className="text-sm font-medium text-gray-500">Clicked</p>
+            <p className="mt-1 text-2xl font-semibold text-purple-700">{summary.clickedEmails}</p>
+          </div>
+        </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <p className="text-sm font-medium text-gray-500">Open Rate</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">{summary.openRate}%</p>
+          </div>
+        </div>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <p className="text-sm font-medium text-gray-500">Click Rate</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">{summary.clickRate}%</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center">
+            <ChartBarIcon className="h-5 w-5 text-gray-500 mr-2" />
+            <h3 className="text-sm font-medium text-gray-900">Funnel</h3>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">Stage-wise sent, opened, clicked, and reply performance.</p>
+        </div>
+        {funnelRows.length === 0 ? (
+          <div className="p-6 text-sm text-gray-500">No funnel data available yet.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outreach</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Opened</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clicked</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Replied</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scheduled</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Failed</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Open Rate</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Click Rate</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {funnelRows.map((row) => {
+                  const openRate = row.sent > 0 ? Math.round((row.openedEmails / row.sent) * 100) : 0;
+                  const clickRate = row.sent > 0 ? Math.round((row.clickedEmails / row.sent) * 100) : 0;
+
+                  return (
+                    <tr key={row.key}>
+                      <td className="px-4 py-3 text-sm text-gray-900">{row.outreachName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{row.stageLabel}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{row.sent}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{row.openedEmails} ({row.openEvents})</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{row.clickedEmails} ({row.clickEvents})</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{row.replied}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{row.scheduled}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{row.failed}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{openRate}%</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{clickRate}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
             <div className="flex space-x-1">
               {[
                 { key: 'all', label: 'All', count: emails.length },
-                { key: 'scheduled', label: 'Scheduled', count: emails.filter(e => e.state === 'SCHEDULE').length },
-                { key: 'delivered', label: 'Delivered', count: emails.filter(e => e.state === 'DELIVERED').length },
-                { key: 'failed', label: 'Failed', count: emails.filter(e => e.state === 'FAILED').length },
+                { key: 'scheduled', label: 'Scheduled', count: emails.filter((e) => e.state === 'SCHEDULE').length },
+                { key: 'delivered', label: 'Delivered', count: emails.filter((e) => e.state === 'DELIVERED').length },
+                { key: 'failed', label: 'Failed', count: emails.filter((e) => e.state === 'FAILED').length },
               ].map((tab) => (
                 <button
                   key={tab.key}
-                  onClick={() => setFilter(tab.key as any)}
+                  onClick={() => setFilter(tab.key as 'all' | 'scheduled' | 'delivered' | 'failed')}
                   className={`px-3 py-2 text-sm font-medium rounded-md ${
                     filter === tab.key
                       ? 'bg-primary-100 text-primary-700'
@@ -198,7 +458,6 @@ export default function EmailsView() {
           </div>
         </div>
 
-        {/* Email List */}
         <div className="divide-y divide-gray-200">
           {filteredEmails.length === 0 ? (
             <div className="p-6 text-center">
@@ -209,60 +468,84 @@ export default function EmailsView() {
               </p>
             </div>
           ) : (
-            filteredEmails.map((email) => (
-              <div key={email.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      {getStatusIcon(email.state, email.opened, email.replied)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {email.client.firstName} {email.client.lastName}
+            filteredEmails.map((email) => {
+              const openedCount = getOpenedCount(email);
+              const clickedCount = getClickedCount(email);
+              const lastClickedAt = getLastClickedAt(email);
+              const stageLabel = getStageLabel(email);
+
+              return (
+                <div key={email.id} className="p-6 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-4">
+                      <div className="flex-shrink-0 mt-1">{getStatusIcon(email)}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center space-x-2">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {(email.client?.firstName || 'Unknown').trim()} {email.client?.lastName || ''}
+                          </p>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(
+                              email.priority,
+                            )}`}
+                          >
+                            {email.priority}
+                          </span>
+                        </div>
+
+                        <p className="text-sm text-gray-500 truncate">{email.id} • {email.client?.emailId || 'No email'}</p>
+
+                        <p className="text-sm text-gray-500 truncate mt-1">
+                          Outreach: {email.outreach?.name || 'Unknown'} • {stageLabel}
                         </p>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(email.priority)}`}>
-                          {email.priority}
-                        </span>
+
+                        {email.subject && <p className="text-sm text-gray-700 truncate mt-1">Subject: {email.subject}</p>}
+
+                        <div className="flex items-center flex-wrap gap-3 mt-2 text-xs text-gray-600">
+                          {openedCount > 0 && (
+                            <span className="flex items-center">
+                              <EyeIcon className="h-3.5 w-3.5 mr-1" />
+                              Opened {openedCount}x
+                            </span>
+                          )}
+                          {clickedCount > 0 && (
+                            <span className="flex items-center">
+                              <CursorArrowRaysIcon className="h-3.5 w-3.5 mr-1" />
+                              Clicked {clickedCount}x
+                            </span>
+                          )}
+                          {email.replied && (
+                            <span className="flex items-center text-green-700">
+                              <CheckIcon className="h-3.5 w-3.5 mr-1" />
+                              Replied
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {/* <p className="text-sm text-gray-500 truncate">
-                        {email.client.emailId}
-                      </p> */}
-                      <p className="text-sm text-gray-500 truncate">
-                        {email.id} • {email.client.emailId}
+                    </div>
+
+                    <div className="flex flex-col items-end space-y-1">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getEmailStateColor(
+                          email.state,
+                        )}`}
+                      >
+                        {email.state}
+                      </span>
+                      <p className="text-xs text-gray-500">
+                        {email.state === 'DELIVERED' && email.deliveryTime
+                          ? `Delivered ${formatDateTime(email.deliveryTime)}`
+                          : `Scheduled ${formatDateTimeTs(email.scheduled10minInterval)}`}
                       </p>
-                      {email.subject && (
-                        <p className="text-sm text-gray-700 truncate mt-1">
-                          Subject: {email.subject}
-                        </p>
+                      {email.openedEmail?.openedAt && (
+                        <p className="text-xs text-gray-500">Last opened {formatDateTime(email.openedEmail.openedAt)}</p>
                       )}
+                      {lastClickedAt && <p className="text-xs text-gray-500">Last click {formatDateTime(lastClickedAt)}</p>}
                     </div>
-                  </div>
-                  <div className="flex flex-col items-end space-y-1">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getEmailStateColor(email.state)}`}>
-                      {email.state}
-                    </span>
-                    <div className="flex items-center space-x-2 text-xs text-gray-500">
-                      {email.opened && (
-                        <span className="flex items-center">
-                          <EyeIcon className="h-3 w-3 mr-1" />
-                          Opened
-                        </span>
-                      )}
-                      {email.replied && (
-                        <span className="flex items-center">
-                          <CheckIcon className="h-3 w-3 mr-1" />
-                          Replied
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {email.deliveryTime ? formatDateTime(email.deliveryTime) : formatDateTimeTs(email.scheduled10minInterval)}
-                    </p>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
