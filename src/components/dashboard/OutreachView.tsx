@@ -23,6 +23,7 @@ interface Outreach {
   name: string;
   description?: string;
   subject?: string;
+  mailboxId?: number | null;
   stateList?: OutreachDto['stateList'];
   outreachType?: OutreachDto['outreachType'];
   scheduledAt?: OutreachDto['scheduledAt'];
@@ -172,36 +173,53 @@ export default function OutreachView() {
             </div>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-200">
-            {outreaches.map((outreach) => (
-              <li key={outreach.id}>
-                <div className="px-6 py-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`h-2 w-2 rounded-full ${outreach.isActive ? 'bg-green-400' : 'bg-gray-400'}`}></div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {outreach.name}
-                        </p>
-                        {outreach.description && (
-                          <p className="text-sm text-gray-500 truncate">
-                            {outreach.description}
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          Created {formatDate(outreach.createdAt)}
-                        </p>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Campaign
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Mailbox ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {outreaches.map((outreach) => (
+                  <tr key={outreach.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-3">
+                        <div className={`h-2 w-2 rounded-full ${outreach.isActive ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{outreach.name}</p>
+                          {outreach.description && (
+                            <p className="text-sm text-gray-500 truncate">{outreach.description}</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">Created {formatDate(outreach.createdAt)}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {outreach.mailboxId ?? 'None'}
+                    </td>
+                    <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        outreach.isActive 
-                          ? 'bg-green-100 text-green-800' 
+                        outreach.isActive
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
                       }`}>
                         {outreach.isActive ? 'Active' : 'Inactive'}
                       </span>
-                      <div className="flex space-x-1">
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="inline-flex space-x-1">
                         <button
                           onClick={() => toast.success('Toggle status feature coming soon!')}
                           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
@@ -234,6 +252,7 @@ export default function OutreachView() {
                                       },
                                     ],
                               subject: outreach.subject || '',
+                              mailboxId: outreach.mailboxId ?? null,
                               outreachType: outreach.outreachType || 'sequence',
                               scheduledAt: outreach.scheduledAt,
                               isActive: outreach.isActive,
@@ -257,12 +276,12 @@ export default function OutreachView() {
                           <TrashIcon className="h-4 w-4" />
                         </button>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

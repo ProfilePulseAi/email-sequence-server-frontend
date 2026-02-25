@@ -11,8 +11,8 @@ class ApiService {
   }> = [];
 
   constructor() {
-    const url = 'https://emailseq.bareuptime.co/api'
-    // const url = 'http://localhost:11000/api'
+    // const url = 'https://emailseq.bareuptime.co/api'
+    const url = 'http://localhost:11000/api'
     this.api = axios.create({
       baseURL: url,
       timeout: 10000,

@@ -330,6 +330,7 @@ export default function OutreachFlowBuilder({
             subject: outreachSubject,
             stateList,
             userId: outreach?.userId,
+            mailboxId: outreach?.mailboxId ?? null,
             isActive: outreach?.isActive ?? true,
           };
           onChange(outreachData);
@@ -371,6 +372,7 @@ export default function OutreachFlowBuilder({
       subject: outreachSubject,
       stateList,
       userId: outreach?.userId,
+      mailboxId: outreach?.mailboxId ?? null,
       isActive: outreach?.isActive ?? true,
     };
   }, [nodes, edges, outreachName, outreachSubject, outreach, getWaitDaysForEmailNode]);

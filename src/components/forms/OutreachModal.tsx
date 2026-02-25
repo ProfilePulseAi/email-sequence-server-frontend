@@ -6,7 +6,7 @@ import { apiService } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import Modal from '@/components/ui/Modal';
 import OutreachForm from './OutreachForm';
-import { OutreachDto, Template } from '@/types';
+import { MailBox, OutreachDto, Template } from '@/types';
 
 interface OutreachModalProps {
   outreach?: OutreachDto;
@@ -20,20 +20,25 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
   const [showFlowBuilder, setShowFlowBuilder] = useState(false);
   const [showSimpleForm, setShowSimpleForm] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [mailboxes, setMailboxes] = useState<MailBox[]>([]);
 
   useEffect(() => {
     if (isOpen) {
-      fetchTemplates();
+      fetchModalData();
     }
   }, [isOpen]);
 
-  const fetchTemplates = async () => {
+  const fetchModalData = async () => {
     try {
-      const data = await apiService.getTemplates();
-      setTemplates(data);
+      const [templatesData, mailboxesData] = await Promise.all([
+        apiService.getTemplates(),
+        apiService.getMailboxes(),
+      ]);
+      setTemplates(templatesData || []);
+      setMailboxes(mailboxesData || []);
     } catch (error) {
-      console.error('Error fetching templates:', error);
-      toast.error('Failed to load templates');
+      console.error('Error loading outreach modal data:', error);
+      toast.error('Failed to load templates or mailboxes');
     }
   };
 
@@ -54,6 +59,7 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
       const draftData = {
         name: '',
         subject: '',
+        mailboxId: null,
         outreachType: 'sequence',
         stateList: [
           {
@@ -92,6 +98,7 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
         <OutreachForm
           outreach={outreach}
           templates={templates}
+          mailboxes={mailboxes}
           onSuccess={() => {
             onSuccess();
             onClose();

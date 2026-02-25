@@ -46,6 +46,7 @@ interface MailboxUpsertPayload {
   };
   shouldCheckReplies: boolean;
   sendingProbability: number;
+  bidding: boolean;
   replyTo: string;
   maxEmailsPerDay: number;
   mailsPer10Mins: number;
@@ -75,6 +76,7 @@ const getDefaultMailboxValues = (): Partial<MailBox> => ({
   sentEmails: 0,
   failedEmails: 0,
   sendingProbability: 100,
+  bidding: true,
   replyTo: '',
   maxEmailsPerDay: 300,
   mailsPer10Mins: 2,
@@ -135,6 +137,7 @@ const getFormMailboxValues = (mailbox?: MailBox): Partial<MailBox> => {
     mailsPer10Mins: mailbox.mailsPer10Mins ?? defaults.mailsPer10Mins,
     maxEmailsPerDay: mailbox.maxEmailsPerDay ?? defaults.maxEmailsPerDay,
     sendingProbability: mailbox.sendingProbability ?? defaults.sendingProbability,
+    bidding: mailbox.bidding ?? defaults.bidding,
   };
 };
 
@@ -222,6 +225,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
         },
         shouldCheckReplies: Boolean(data.shouldCheckReplies),
         sendingProbability,
+        bidding: Boolean(data.bidding),
         replyTo: trimString(data.replyTo),
         maxEmailsPerDay,
         mailsPer10Mins,
@@ -399,6 +403,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
       setValue('replyTo', parsedData.replyTo);
       setValue('maxEmailsPerDay', maxEmailsPerDay ?? 300);
       setValue('sendingProbability', sendingProbability ?? 100);
+      setValue('bidding', parsedData.bidding !== undefined ? Boolean(parsedData.bidding) : true);
       setValue('shouldCheckReplies', Boolean(parsedData.shouldCheckReplies));
       setValue('mailsPer10Mins', mailsPer10Mins ?? 2);
       
@@ -455,6 +460,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
       "replyTo": "user@example.com",
       "maxEmailsPerDay": 300,
       "sendingProbability": 100,
+      "bidding": true,
       "shouldCheckReplies": true,
       "mailsPer10Mins": 2
     };
@@ -531,6 +537,7 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
   "replyTo": "reply@example.com",
   "maxEmailsPerDay": 300,
   "sendingProbability": 100,
+  "bidding": true,
   "shouldCheckReplies": false
 }`}
                   />
@@ -706,6 +713,18 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
           </div>
 
           <div className="mt-4">
+            <div className="flex items-center mb-3">
+              <input
+                type="checkbox"
+                id="bidding"
+                {...register('bidding')}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="bidding" className="ml-2 block text-sm text-gray-900">
+                Include this mailbox in bidding pool
+              </label>
+            </div>
+
             <div className="flex items-center">
               <input
                 type="checkbox"

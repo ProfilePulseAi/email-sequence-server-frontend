@@ -130,6 +130,7 @@ export default function MailboxView() {
       replyTo: mailbox.replyTo,
       maxEmailsPerDay: mailbox.maxEmailsPerDay,
       sendingProbability: mailbox.sendingProbability,
+      bidding: mailbox.bidding ?? true,
       shouldCheckReplies: mailbox.shouldCheckReplies,
       mailsPer10Mins: mailbox.mailsPer10Mins || 2
     };
@@ -304,6 +305,9 @@ export default function MailboxView() {
                         
                         <div>
                           <span className="font-medium">Probability:</span> {mailbox.sendingProbability}%
+                        </div>
+                        <div>
+                          <span className="font-medium">Bidding:</span> {mailbox.bidding === false ? 'Off' : 'On'}
                         </div>
                       </div>
                       <p className="text-xs text-gray-500 mt-2">

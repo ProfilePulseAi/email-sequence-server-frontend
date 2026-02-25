@@ -73,6 +73,7 @@ export interface Outreach {
   userId: number;
   name: string;
   description?: string;
+  mailboxId?: number | null;
   isActive: boolean;
   templates?: EmailTemplate[];
   stateList?: State[];
@@ -113,6 +114,7 @@ export interface MailBox {
   sentEmails?: number;
   failedEmails?: number;
   sendingProbability: number;
+  bidding?: boolean;
   replyTo: string;
   maxEmailsPerDay: number;
   scheduledCount?: number;
@@ -259,6 +261,7 @@ export interface OutreachDto {
   userId?: number;
   stateList: OutreachState[];
   subject: string;
+  mailboxId?: number | null;
   outreachType?: OutreachType;
   scheduledAt?: string;
   isActive?: boolean;

@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createOutreach, updateOutreach } from '@/lib/api';
-import { OutreachDto, State, Template, OutreachType } from '@/types';
+import { MailBox, OutreachDto, State, Template, OutreachType } from '@/types';
 
 interface OutreachFormProps {
   outreach?: OutreachDto;
   templates?: Template[];
+  mailboxes?: MailBox[];
   onSuccess?: () => void;
 }
 
@@ -41,7 +42,7 @@ const createDefaultState = (templateId: string): State => ({
   templateId,
 });
 
-export default function OutreachForm({ outreach, templates = [], onSuccess }: OutreachFormProps) {
+export default function OutreachForm({ outreach, templates = [], mailboxes = [], onSuccess }: OutreachFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const defaultTemplateId = useMemo(() => templates[0]?.id?.toString() || '', [templates]);
@@ -49,6 +50,7 @@ export default function OutreachForm({ outreach, templates = [], onSuccess }: Ou
   const [formData, setFormData] = useState({
     name: '',
     subject: '',
+    mailboxId: '',
     outreachType: 'sequence' as OutreachType,
     scheduledDelayHours: `${MIN_SCHEDULE_DELAY_HOURS}`,
   });
@@ -61,6 +63,7 @@ export default function OutreachForm({ outreach, templates = [], onSuccess }: Ou
       setFormData({
         name: outreach.name,
         subject: outreach.subject || '',
+        mailboxId: outreach.mailboxId != null ? outreach.mailboxId.toString() : '',
         outreachType: normalizedType,
         scheduledDelayHours: toScheduleDelayHours(outreach.scheduledAt),
       });
@@ -81,6 +84,7 @@ export default function OutreachForm({ outreach, templates = [], onSuccess }: Ou
     setFormData({
       name: '',
       subject: '',
+      mailboxId: '',
       outreachType: 'sequence',
       scheduledDelayHours: `${MIN_SCHEDULE_DELAY_HOURS}`,
     });
@@ -170,6 +174,7 @@ export default function OutreachForm({ outreach, templates = [], onSuccess }: Ou
       const outreachDataToSave = {
         name: formData.name,
         subject: formData.subject,
+        mailboxId: formData.mailboxId ? Number(formData.mailboxId) : null,
         outreachType: selectedType,
         scheduledAt: scheduledAtIso,
         stateList: normalizedStateList,
@@ -196,7 +201,7 @@ export default function OutreachForm({ outreach, templates = [], onSuccess }: Ou
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 w-full">
       <form onSubmit={handleSubmit} className="space-y-6 w-full">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
               Campaign Name *
@@ -213,18 +218,22 @@ export default function OutreachForm({ outreach, templates = [], onSuccess }: Ou
           </div>
 
           <div>
-            <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-              Email Subject *
+            <label htmlFor="mailboxId" className="block text-sm font-medium text-gray-700 mb-2">
+              Mailbox ID
             </label>
-            <input
-              type="text"
-              id="subject"
-              value={formData.subject}
-              onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))}
+            <select
+              id="mailboxId"
+              value={formData.mailboxId}
+              onChange={(e) => setFormData((prev) => ({ ...prev, mailboxId: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter email subject"
-              required
-            />
+            >
+              <option value="">None (Use bidding pool)</option>
+              {mailboxes.map((mailbox) => (
+                <option key={mailbox.id} value={mailbox.id.toString()}>
+                  {mailbox.id} - {mailbox.name} ({mailbox.emailId})
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -265,6 +274,22 @@ export default function OutreachForm({ outreach, templates = [], onSuccess }: Ou
               <option value="scheduled">Scheduled</option>
             </select>
           </div>
+        </div>
+
+        {/* subject field moved below grid */}
+        <div>
+          <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+            Email Subject *
+          </label>
+          <input
+            type="text"
+            id="subject"
+            value={formData.subject}
+            onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Enter email subject"
+            required
+          />
         </div>
 
         {formData.outreachType === 'scheduled' && (
