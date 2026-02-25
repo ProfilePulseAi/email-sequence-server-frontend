@@ -22,6 +22,7 @@ interface Client {
   firstName: string;
   lastName: string;
   emailId: string;
+  source?: string;
   company?: string;
   position?: string;
   phone?: string;
@@ -36,6 +37,7 @@ export default function ClientsView() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSource, setSelectedSource] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
@@ -71,11 +73,27 @@ export default function ClientsView() {
   };
 
   console.log('Clients data:', clients);
+  const sourceOptions = Array.from(
+    new Set(
+      clients
+        .map((client) => (client.source || '').trim())
+        .filter((source) => source.length > 0),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
   const filteredClients = clients.filter(client =>
-    client.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.emailId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (client.company && client.company.toLowerCase().includes(searchTerm.toLowerCase()))
+    (
+      selectedSource === 'all' ||
+      (selectedSource === '__NO_SOURCE__' && !(client.source || '').trim()) ||
+      (selectedSource !== '__NO_SOURCE__' && (client.source || '').trim() === selectedSource)
+    ) &&
+    (
+      client.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.emailId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (client.company && client.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (client.source && client.source.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
   );
 
   if (loading) {
@@ -142,18 +160,45 @@ export default function ClientsView() {
       {/* Search */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="relative sm:col-span-2">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search clients..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Search clients..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            />
+            <div>
+              <label htmlFor="sourceFilter" className="sr-only">
+                Filter by source
+              </label>
+              <select
+                id="sourceFilter"
+                value={selectedSource}
+                onChange={(e) => setSelectedSource(e.target.value)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              >
+                <option value="all">All Sources</option>
+                <option value="__NO_SOURCE__">No Source</option>
+                {sourceOptions.map((source) => (
+                  <option key={source} value={source}>
+                    {source}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+          {selectedSource !== 'all' && (
+            <div className="mt-2 text-xs text-gray-500">
+              Showing{' '}
+              {selectedSource === '__NO_SOURCE__' ? 'clients without source' : `source: ${selectedSource}`}
+            </div>
+          )}
         </div>
       </div>
 
@@ -286,6 +331,13 @@ export default function ClientsView() {
                     <EnvelopeIcon className="h-4 w-4 mr-2" />
                     <span className="truncate">{client.emailId}</span>
                   </div>
+                  {client.source && (
+                    <div className="flex items-center text-sm text-gray-500">
+                      <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                        Source: {client.source}
+                      </span>
+                    </div>
+                  )}
                   {client.phone && (
                     <div className="flex items-center text-sm text-gray-500">
                       <PhoneIcon className="h-4 w-4 mr-2" />

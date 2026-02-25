@@ -19,8 +19,13 @@ import {
 
 interface Outreach {
   id: number;
+  userId?: number;
   name: string;
   description?: string;
+  subject?: string;
+  stateList?: OutreachDto['stateList'];
+  outreachType?: OutreachDto['outreachType'];
+  scheduledAt?: OutreachDto['scheduledAt'];
   isActive: boolean;
   createdAt: string;
 }
@@ -212,10 +217,26 @@ export default function OutreachView() {
                           onClick={() => {
                             const outreachDto: OutreachDto = {
                               id: outreach.id,
+                              userId: outreach.userId,
                               name: outreach.name,
-                              stateList: [],
-                              subject: '',
-                              isActive: outreach.isActive
+                              stateList:
+                                outreach.stateList?.length
+                                  ? outreach.stateList.map((stage) => ({
+                                      ...stage,
+                                      templateId: stage.templateId?.toString() || '',
+                                    }))
+                                  : [
+                                      {
+                                        name: 'initial',
+                                        scheduleAfterDays: 0,
+                                        description: 'Initial email',
+                                        templateId: '',
+                                      },
+                                    ],
+                              subject: outreach.subject || '',
+                              outreachType: outreach.outreachType || 'sequence',
+                              scheduledAt: outreach.scheduledAt,
+                              isActive: outreach.isActive,
                             };
                             setEditingOutreach(outreachDto);
                           }}

@@ -20,7 +20,6 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
   const [showFlowBuilder, setShowFlowBuilder] = useState(false);
   const [showSimpleForm, setShowSimpleForm] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -35,29 +34,6 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
     } catch (error) {
       console.error('Error fetching templates:', error);
       toast.error('Failed to load templates');
-    }
-  };
-
-  const handleSaveOutreach = async (outreachData: OutreachDto) => {
-    try {
-      setLoading(true);
-      
-      if (outreach?.id) {
-        await apiService.updateOutreach(outreach.id, outreachData);
-        toast.success('Outreach campaign updated successfully');
-      } else {
-        await apiService.createOutreach(outreachData);
-        toast.success('Outreach campaign created successfully');
-      }
-      
-      onSuccess();
-      onClose();
-      setShowFlowBuilder(false);
-      setShowSimpleForm(false);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to save outreach campaign');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -78,7 +54,15 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
       const draftData = {
         name: '',
         subject: '',
-        stateList: [],
+        outreachType: 'sequence',
+        stateList: [
+          {
+            name: 'initial',
+            scheduleAfterDays: 0,
+            description: 'Initial email',
+            templateId: templates[0]?.id?.toString() || '',
+          },
+        ],
       };
       localStorage.setItem('outreach_draft_new', JSON.stringify(draftData));
       router.push('/dashboard/outreach/flow');
@@ -107,6 +91,7 @@ export default function OutreachModal({ outreach, isOpen, onClose, onSuccess }: 
       >
         <OutreachForm
           outreach={outreach}
+          templates={templates}
           onSuccess={() => {
             onSuccess();
             onClose();

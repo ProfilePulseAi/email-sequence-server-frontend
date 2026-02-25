@@ -27,6 +27,7 @@ export interface Client {
   firstName: string;
   lastName: string;
   email: string;
+  source?: string;
   company?: string;
   position?: string;
   phone?: string;
@@ -76,6 +77,8 @@ export interface Outreach {
   templates?: EmailTemplate[];
   stateList?: State[];
   subject?: string;
+  outreachType?: OutreachType;
+  scheduledAt?: string | Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -241,6 +244,8 @@ export interface State {
   templateId: string;
 }
 
+export type OutreachType = 'immediate' | 'scheduled' | 'sequence';
+
 export interface OutreachState {
   name: string;
   scheduleAfterDays: number;
@@ -254,6 +259,8 @@ export interface OutreachDto {
   userId?: number;
   stateList: OutreachState[];
   subject: string;
+  outreachType?: OutreachType;
+  scheduledAt?: string;
   isActive?: boolean;
   createdAt?: Date;
   updatedAt?: Date;

@@ -11,6 +11,7 @@ interface Client {
   firstName: string;
   lastName: string;
   emailId: string;
+  source?: string;
   company?: string;
   position?: string;
   phone?: string;
@@ -40,6 +41,7 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
       firstName: '',
       lastName: '',
       emailId: '',
+      source: '',
       company: '',
       position: '',
       phone: '',
@@ -58,6 +60,7 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
         firstName: '',
         lastName: '',
         emailId: '',
+        source: '',
         company: '',
         position: '',
         phone: '',
@@ -73,12 +76,16 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
       setIsSubmitting(true);
       
       // Filter out empty/null values
-      const filteredData = Object.entries(data).reduce((acc, [key, value]) => {
+      const filteredData = Object.entries(data).reduce<Record<string, any>>((acc, [key, value]) => {
+        if (key === 'source') {
+          acc[key] = value ?? '';
+          return acc;
+        }
         if (value !== null && value !== undefined && value !== '') {
-          acc[key as keyof Client] = value;
+          acc[key] = value;
         }
         return acc;
-      }, {} as Partial<Client>);
+      }, {});
       
       if (isEditing && client?.id) {
         await apiService.updateClient(client.id, filteredData);
@@ -164,6 +171,19 @@ export default function ClientForm({ client, isOpen, onClose, onSuccess }: Clien
 
         {/* Professional Information */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="source" className="block text-sm font-medium text-gray-700">
+              Source
+            </label>
+            <input
+              type="text"
+              id="source"
+              {...register('source')}
+              placeholder="e.g. LinkedIn, Referral, Website"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
+          </div>
+
           <div>
             <label htmlFor="company" className="block text-sm font-medium text-gray-700">
               Company
