@@ -12,7 +12,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL:  'http://localhost:11000/api',
+      baseURL:  'http://emailseq.bareuptime.co/api',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
