@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiService } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { formatDateTime, formatDateTimeTs, getEmailStateColor, getPriorityColor } from '@/lib/utils';
+import Modal from '@/components/ui/Modal';
 import {
   EnvelopeIcon,
   EyeIcon,
@@ -30,6 +31,7 @@ interface Email {
     name: string;
     stateList?: Array<{
       name?: string;
+      templateId?: number;
     }>;
   };
   outreachStateId: number;
@@ -48,6 +50,16 @@ interface Email {
   subject?: string;
   createdAt: string;
   scheduled10minInterval: string;
+  overrideTemplateId?: number | null;
+}
+
+interface PromotionPreview {
+  emailId: number;
+  currentOutreachStateId: number;
+  currentTemplateId?: number;
+  nextOutreachStateId: number;
+  nextTemplateId: number;
+  nextStageName: string;
 }
 
 interface FunnelRow {
@@ -109,11 +121,29 @@ const getStageLabel = (email: Email): string => {
   return `Stage ${email.outreachStateId + 1}`;
 };
 
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  const maybeError = error as { response?: { data?: { message?: string | string[] } } };
+  const message = maybeError?.response?.data?.message;
+  if (Array.isArray(message) && message.length > 0) {
+    return message[0];
+  }
+  if (typeof message === 'string' && message.trim().length > 0) {
+    return message;
+  }
+  return fallback;
+};
+
 export default function EmailsView() {
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'delivered' | 'failed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [promotionModalOpen, setPromotionModalOpen] = useState(false);
+  const [promotionPreview, setPromotionPreview] = useState<PromotionPreview | null>(null);
+  const [promotionTarget, setPromotionTarget] = useState<Email | null>(null);
+  const [promotionOverrideTemplateId, setPromotionOverrideTemplateId] = useState('');
+  const [loadingPromotionPreview, setLoadingPromotionPreview] = useState(false);
+  const [sendingPromotion, setSendingPromotion] = useState(false);
 
   useEffect(() => {
     fetchEmails();
@@ -149,6 +179,71 @@ export default function EmailsView() {
       fetchEmails();
     } catch (error) {
       toast.error('Failed to check email status');
+    }
+  };
+
+  const hasNextStage = (email: Email): boolean => {
+    const totalStages = email.outreach?.stateList?.length ?? 0;
+    return totalStages > email.outreachStateId + 1;
+  };
+
+  const closePromotionModal = (forceClose: boolean = false) => {
+    if (sendingPromotion && !forceClose) {
+      return;
+    }
+    setPromotionModalOpen(false);
+    setPromotionPreview(null);
+    setPromotionTarget(null);
+    setPromotionOverrideTemplateId('');
+    setLoadingPromotionPreview(false);
+  };
+
+  const openPromotionModal = async (email: Email) => {
+    setPromotionTarget(email);
+    setPromotionPreview(null);
+    setPromotionOverrideTemplateId('');
+    setPromotionModalOpen(true);
+    setLoadingPromotionPreview(true);
+
+    try {
+      const preview = await apiService.getEmailPromotionPreview(email.id);
+      setPromotionPreview(preview);
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to load promotion details'));
+      closePromotionModal(true);
+    } finally {
+      setLoadingPromotionPreview(false);
+    }
+  };
+
+  const handlePromoteAndSend = async () => {
+    if (!promotionTarget || !promotionPreview) {
+      return;
+    }
+
+    let overrideTemplateId: number | undefined;
+    if (promotionOverrideTemplateId.trim().length > 0) {
+      const parsedTemplateId = Number(promotionOverrideTemplateId.trim());
+      if (!Number.isInteger(parsedTemplateId) || parsedTemplateId <= 0) {
+        toast.error('Override template ID must be a positive integer');
+        return;
+      }
+      overrideTemplateId = parsedTemplateId;
+    }
+
+    try {
+      setSendingPromotion(true);
+      await apiService.promoteEmailAndSend(
+        promotionTarget.id,
+        overrideTemplateId ? { overrideTemplateId } : undefined,
+      );
+      toast.success('Email promoted and sent successfully');
+      closePromotionModal(true);
+      await fetchEmails();
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to promote and send email'));
+    } finally {
+      setSendingPromotion(false);
     }
   };
 
@@ -473,6 +568,8 @@ export default function EmailsView() {
               const clickedCount = getClickedCount(email);
               const lastClickedAt = getLastClickedAt(email);
               const stageLabel = getStageLabel(email);
+              const isPromotionInProgressForEmail =
+                promotionTarget?.id === email.id && (loadingPromotionPreview || sendingPromotion);
 
               return (
                 <div key={email.id} className="p-6 hover:bg-gray-50 transition-colors">
@@ -525,6 +622,15 @@ export default function EmailsView() {
                     </div>
 
                     <div className="flex flex-col items-end space-y-1">
+                      {email.state === 'SCHEDULE' && hasNextStage(email) && (
+                        <button
+                          onClick={() => openPromotionModal(email)}
+                          disabled={isPromotionInProgressForEmail}
+                          className="inline-flex items-center px-2.5 py-1 rounded-md border border-primary-200 bg-primary-50 text-primary-700 text-xs font-medium hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Promote & Send
+                        </button>
+                      )}
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getEmailStateColor(
                           email.state,
@@ -549,6 +655,66 @@ export default function EmailsView() {
           )}
         </div>
       </div>
+
+      <Modal isOpen={promotionModalOpen} onClose={() => closePromotionModal()} title="Promote Email To Next Stage" size="md">
+        {loadingPromotionPreview || !promotionPreview || !promotionTarget ? (
+          <div className="py-8 text-sm text-gray-600">Loading promotion details...</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 space-y-1">
+              <p>
+                <span className="font-medium">Client:</span> {promotionTarget.client?.emailId || 'Unknown'}
+              </p>
+              <p>
+                <span className="font-medium">Current Stage:</span> {getStageLabel(promotionTarget)}
+              </p>
+              <p>
+                <span className="font-medium">Next Stage:</span> {promotionPreview.nextStageName}
+              </p>
+              <p>
+                <span className="font-medium">Default Next Template ID:</span> {promotionPreview.nextTemplateId}
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="promotion-template-id" className="block text-sm font-medium text-gray-700 mb-2">
+                Override Template ID (optional)
+              </label>
+              <input
+                id="promotion-template-id"
+                type="number"
+                min={1}
+                value={promotionOverrideTemplateId}
+                onChange={(e) => setPromotionOverrideTemplateId(e.target.value)}
+                placeholder={`${promotionPreview.nextTemplateId}`}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Leave empty to use the stage template ID ({promotionPreview.nextTemplateId}).
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => closePromotionModal()}
+                disabled={sendingPromotion}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handlePromoteAndSend}
+                disabled={sendingPromotion}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {sendingPromotion ? 'Sending...' : 'Send Next Stage'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

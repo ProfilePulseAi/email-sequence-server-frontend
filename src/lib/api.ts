@@ -402,6 +402,16 @@ class ApiService {
     return response.data;
   }
 
+  async getEmailPromotionPreview(emailId: number) {
+    const response = await this.api.get(`/email/promote/${emailId}/preview`);
+    return response.data;
+  }
+
+  async promoteEmailAndSend(emailId: number, payload?: { overrideTemplateId?: number }) {
+    const response = await this.api.post(`/email/promote/${emailId}/send`, payload || {});
+    return response.data;
+  }
+
   async replyToEmail(replyData: any) {
     const response = await this.api.post('/email/reply', replyData);
     return response.data;
