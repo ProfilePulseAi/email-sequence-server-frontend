@@ -187,6 +187,43 @@ export default function EmailsView() {
     return totalStages > email.outreachStateId + 1;
   };
 
+  const isSameOutreachAndClient = (firstEmail: Email, secondEmail: Email): boolean => {
+    const firstClientEmail = (firstEmail.client?.emailId || '').toLowerCase();
+    const secondClientEmail = (secondEmail.client?.emailId || '').toLowerCase();
+    if (!firstClientEmail || !secondClientEmail || firstClientEmail !== secondClientEmail) {
+      return false;
+    }
+
+    if (firstEmail.outreach?.id != null && secondEmail.outreach?.id != null) {
+      return firstEmail.outreach.id === secondEmail.outreach.id;
+    }
+
+    return (firstEmail.outreach?.name || '').trim() === (secondEmail.outreach?.name || '').trim();
+  };
+
+  const canPromoteAndSend = (email: Email): boolean => {
+    if (!hasNextStage(email)) {
+      return false;
+    }
+
+    if (email.state === 'SCHEDULE') {
+      return true;
+    }
+
+    if (email.state === 'DELIVERED') {
+      const nextStateId = email.outreachStateId + 1;
+      return emails.some(
+        (candidateEmail) =>
+          candidateEmail.id !== email.id &&
+          candidateEmail.state === 'SCHEDULE' &&
+          candidateEmail.outreachStateId === nextStateId &&
+          isSameOutreachAndClient(email, candidateEmail),
+      );
+    }
+
+    return false;
+  };
+
   const closePromotionModal = (forceClose: boolean = false) => {
     if (sendingPromotion && !forceClose) {
       return;
@@ -199,6 +236,11 @@ export default function EmailsView() {
   };
 
   const openPromotionModal = async (email: Email) => {
+    if (!canPromoteAndSend(email)) {
+      toast.error('This email cannot be promoted right now');
+      return;
+    }
+
     setPromotionTarget(email);
     setPromotionPreview(null);
     setPromotionOverrideTemplateId('');
@@ -622,7 +664,7 @@ export default function EmailsView() {
                     </div>
 
                     <div className="flex flex-col items-end space-y-1">
-                      {email.state === 'SCHEDULE' && hasNextStage(email) && (
+                      {canPromoteAndSend(email) && (
                         <button
                           onClick={() => openPromotionModal(email)}
                           disabled={isPromotionInProgressForEmail}
