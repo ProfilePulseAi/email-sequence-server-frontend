@@ -417,8 +417,8 @@ class ApiService {
     return response.data;
   }
 
-  async terminateOutreachBySequence(payload: { emailSequenceId: number; outreachId: number }) {
-    const response = await this.api.post('/email/terminate', payload);
+  async terminateEmailById(emailId: number) {
+    const response = await this.api.delete(`/email/${emailId}/terminate`);
     return response.data;
   }
 

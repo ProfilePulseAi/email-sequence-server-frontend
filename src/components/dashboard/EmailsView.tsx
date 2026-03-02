@@ -319,46 +319,20 @@ export default function EmailsView() {
   };
 
   const handleTerminateOutreach = async (email: Email) => {
-    if (!email.outreach?.id) {
-      toast.error('Outreach not found for this email');
-      return;
-    }
-
     const confirmed = window.confirm(
-      `Terminate "${email.outreach.name}"? This will delete the outreach and all associated emails immediately.`,
+      `Terminate this email sequence row (${email.id}) for ${email.client?.emailId || 'this client'}?`,
     );
     if (!confirmed) {
       return;
     }
 
-    const sequenceIdInput = window.prompt(
-      `Enter Email Sequence ID ${email.id} to confirm termination for "${email.outreach.name}".`,
-      `${email.id}`,
-    );
-    if (sequenceIdInput === null) {
-      return;
-    }
-
-    const emailSequenceId = Number(sequenceIdInput.trim());
-    if (!Number.isInteger(emailSequenceId) || emailSequenceId <= 0) {
-      toast.error('Invalid Email Sequence ID');
-      return;
-    }
-    if (emailSequenceId !== email.id) {
-      toast.error('Email Sequence ID does not match this row');
-      return;
-    }
-
     try {
       setProcessingEmailAction({ emailId: email.id, action: 'terminate' });
-      await apiService.terminateOutreachBySequence({
-        emailSequenceId,
-        outreachId: email.outreach.id,
-      });
-      toast.success(`Outreach "${email.outreach.name}" terminated`);
+      await apiService.terminateEmailById(email.id);
+      toast.success(`Email ${email.id} terminated`);
       await fetchEmails();
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to terminate outreach'));
+      toast.error(getErrorMessage(error, 'Failed to terminate email'));
     } finally {
       setProcessingEmailAction(null);
     }
@@ -693,7 +667,7 @@ export default function EmailsView() {
                 processingEmailAction?.emailId === email.id && processingEmailAction.action === 'terminate';
               const isActionInProgressForEmail = processingEmailAction?.emailId === email.id;
               const canCancelAndAdvance = email.state === 'SCHEDULE' && hasNextStage(email);
-              const canTerminate = email.state === 'SCHEDULE';
+              const canTerminate = true;
 
               return (
                 <div key={email.id} className="p-6 hover:bg-gray-50 transition-colors">
