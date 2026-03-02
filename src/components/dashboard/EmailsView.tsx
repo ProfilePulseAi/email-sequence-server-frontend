@@ -138,6 +138,7 @@ export default function EmailsView() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'delivered' | 'failed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [outreachFilter, setOutreachFilter] = useState<{ key: string; label: string } | null>(null);
   const [promotionModalOpen, setPromotionModalOpen] = useState(false);
   const [promotionPreview, setPromotionPreview] = useState<PromotionPreview | null>(null);
   const [promotionTarget, setPromotionTarget] = useState<Email | null>(null);
@@ -171,7 +172,7 @@ export default function EmailsView() {
       await apiService.sendScheduledEmails();
       toast.success('Scheduled emails sent successfully!');
       fetchEmails();
-    } catch (error) {
+    } catch {
       toast.error('Failed to send scheduled emails');
     }
   };
@@ -181,9 +182,31 @@ export default function EmailsView() {
       await apiService.checkEmails();
       toast.success('Email delivery status checked!');
       fetchEmails();
-    } catch (error) {
+    } catch {
       toast.error('Failed to check email status');
     }
+  };
+
+  const normalizeOutreachName = (name?: string): string => {
+    const trimmedName = (name || '').trim();
+    return trimmedName.length > 0 ? trimmedName.toLowerCase() : 'untitled outreach';
+  };
+
+  const getDisplayOutreachName = (name?: string): string => {
+    const trimmedName = (name || '').trim();
+    return trimmedName.length > 0 ? trimmedName : 'Untitled Outreach';
+  };
+
+  const handleOutreachFilter = (name?: string) => {
+    const label = getDisplayOutreachName(name);
+    const key = normalizeOutreachName(name);
+
+    setOutreachFilter((currentFilter) => {
+      if (currentFilter?.key === key) {
+        return null;
+      }
+      return { key, label };
+    });
   };
 
   const hasNextStage = (email: Email): boolean => {
@@ -367,12 +390,14 @@ export default function EmailsView() {
         const lastName = email.client?.lastName || '';
         const clientEmail = email.client?.emailId || '';
         const taskName = email.taskName || '';
-        const outreachName = email.outreach?.name || '';
+        const outreachName = getDisplayOutreachName(email.outreach?.name);
         const matchesFilter =
           filter === 'all' ||
           (filter === 'scheduled' && email.state === 'SCHEDULE') ||
           (filter === 'delivered' && email.state === 'DELIVERED') ||
           (filter === 'failed' && email.state === 'FAILED');
+        const matchesOutreach =
+          !outreachFilter || normalizeOutreachName(email.outreach?.name) === outreachFilter.key;
 
         const stageLabel = getStageLabel(email).toLowerCase();
         const matchesSearch =
@@ -384,16 +409,16 @@ export default function EmailsView() {
           outreachName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           stageLabel.includes(searchTerm.toLowerCase());
 
-        return matchesFilter && matchesSearch;
+        return matchesFilter && matchesOutreach && matchesSearch;
       }),
-    [emails, filter, searchTerm],
+    [emails, filter, outreachFilter, searchTerm],
   );
 
   const funnelRows = useMemo(() => {
     const stageMap = new Map<string, FunnelRow>();
 
     for (const email of emails) {
-      const outreachName = email.outreach?.name || 'Untitled Outreach';
+      const outreachName = getDisplayOutreachName(email.outreach?.name);
       const stageIndex = email.outreachStateId ?? 0;
       const stageLabel = getStageLabel(email);
       const key = `${outreachName}::${stageIndex}`;
@@ -590,7 +615,19 @@ export default function EmailsView() {
 
                   return (
                     <tr key={row.key}>
-                      <td className="px-4 py-3 text-sm text-gray-900">{row.outreachName}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <button
+                          type="button"
+                          onClick={() => handleOutreachFilter(row.outreachName)}
+                          className={`font-medium ${
+                            outreachFilter?.key === normalizeOutreachName(row.outreachName)
+                              ? 'text-primary-700 underline'
+                              : 'text-primary-600 hover:text-primary-700 hover:underline'
+                          }`}
+                        >
+                          {row.outreachName}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-700">{row.stageLabel}</td>
                       <td className="px-4 py-3 text-sm text-gray-900">{row.sent}</td>
                       <td className="px-4 py-3 text-sm text-gray-900">{row.openedEmails} ({row.openEvents})</td>
@@ -642,6 +679,20 @@ export default function EmailsView() {
               />
             </div>
           </div>
+          {outreachFilter && (
+            <div className="mt-3 flex items-center justify-between rounded-md border border-primary-100 bg-primary-50 px-3 py-2 text-xs text-primary-800">
+              <p>
+                Outreach filter: <span className="font-semibold">{outreachFilter.label}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setOutreachFilter(null)}
+                className="font-medium text-primary-700 hover:text-primary-800"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="divide-y divide-gray-200">
@@ -650,7 +701,13 @@ export default function EmailsView() {
               <EnvelopeIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No emails found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {filter === 'all' ? 'Get started by creating your first outreach campaign.' : `No ${filter} emails found.`}
+                {filter === 'all'
+                  ? outreachFilter
+                    ? `No emails found for outreach "${outreachFilter.label}".`
+                    : 'Get started by creating your first outreach campaign.'
+                  : outreachFilter
+                    ? `No ${filter} emails found for outreach "${outreachFilter.label}".`
+                    : `No ${filter} emails found.`}
               </p>
             </div>
           ) : (
@@ -659,6 +716,7 @@ export default function EmailsView() {
               const clickedCount = getClickedCount(email);
               const lastClickedAt = getLastClickedAt(email);
               const stageLabel = getStageLabel(email);
+              const outreachName = getDisplayOutreachName(email.outreach?.name);
               const isPromotionInProgressForEmail =
                 promotionTarget?.id === email.id && (loadingPromotionPreview || sendingPromotion);
               const isCancelInProgressForEmail =
@@ -668,6 +726,7 @@ export default function EmailsView() {
               const isActionInProgressForEmail = processingEmailAction?.emailId === email.id;
               const canCancelAndAdvance = email.state === 'SCHEDULE' && hasNextStage(email);
               const canTerminate = true;
+              const promoteActionLabel = email.state === 'SCHEDULE' ? 'Promote Message' : 'Promote & Send';
 
               return (
                 <div key={email.id} className="p-6 hover:bg-gray-50 transition-colors">
@@ -691,7 +750,19 @@ export default function EmailsView() {
                         <p className="text-sm text-gray-500 truncate">{email.id} • {email.client?.emailId || 'No email'}</p>
 
                         <p className="text-sm text-gray-500 truncate mt-1">
-                          Outreach: {email.outreach?.name || 'Unknown'} • {stageLabel}
+                          Outreach:{' '}
+                          <button
+                            type="button"
+                            onClick={() => handleOutreachFilter(outreachName)}
+                            className={`font-medium ${
+                              outreachFilter?.key === normalizeOutreachName(outreachName)
+                                ? 'text-primary-700 underline'
+                                : 'text-primary-600 hover:text-primary-700 hover:underline'
+                            }`}
+                          >
+                            {outreachName}
+                          </button>{' '}
+                          • {stageLabel}
                         </p>
 
                         {email.subject && <p className="text-sm text-gray-700 truncate mt-1">Subject: {email.subject}</p>}
@@ -744,7 +815,7 @@ export default function EmailsView() {
                           disabled={isPromotionInProgressForEmail || isActionInProgressForEmail}
                           className="inline-flex items-center px-2.5 py-1 rounded-md border border-primary-200 bg-primary-50 text-primary-700 text-xs font-medium hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          Promote & Send
+                          {promoteActionLabel}
                         </button>
                       )}
                       <span
@@ -772,7 +843,12 @@ export default function EmailsView() {
         </div>
       </div>
 
-      <Modal isOpen={promotionModalOpen} onClose={() => closePromotionModal()} title="Promote Email To Next Stage" size="md">
+      <Modal
+        isOpen={promotionModalOpen}
+        onClose={() => closePromotionModal()}
+        title={promotionTarget?.state === 'SCHEDULE' ? 'Promote Scheduled Message' : 'Promote Email To Next Stage'}
+        size="md"
+      >
         {loadingPromotionPreview || !promotionPreview || !promotionTarget ? (
           <div className="py-8 text-sm text-gray-600">Loading promotion details...</div>
         ) : (
@@ -825,7 +901,11 @@ export default function EmailsView() {
                 disabled={sendingPromotion}
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {sendingPromotion ? 'Sending...' : 'Send Next Stage'}
+                {sendingPromotion
+                  ? 'Sending...'
+                  : promotionTarget.state === 'SCHEDULE'
+                    ? 'Promote Message'
+                    : 'Send Next Stage'}
               </button>
             </div>
           </div>
