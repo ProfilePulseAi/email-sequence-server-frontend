@@ -144,6 +144,10 @@ export default function EmailsView() {
   const [promotionOverrideTemplateId, setPromotionOverrideTemplateId] = useState('');
   const [loadingPromotionPreview, setLoadingPromotionPreview] = useState(false);
   const [sendingPromotion, setSendingPromotion] = useState(false);
+  const [processingEmailAction, setProcessingEmailAction] = useState<{
+    emailId: number;
+    action: 'cancel' | 'terminate';
+  } | null>(null);
 
   useEffect(() => {
     fetchEmails();
@@ -286,6 +290,77 @@ export default function EmailsView() {
       toast.error(getErrorMessage(error, 'Failed to promote and send email'));
     } finally {
       setSendingPromotion(false);
+    }
+  };
+
+  const handleCancelAndAdvance = async (email: Email) => {
+    if (!hasNextStage(email)) {
+      toast.error('This email is already at the last stage');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Cancel this scheduled email for ${email.client?.emailId || 'this client'} and move to the next stage?`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setProcessingEmailAction({ emailId: email.id, action: 'cancel' });
+      await apiService.cancelScheduledEmailAndAdvance(email.id);
+      toast.success('Scheduled email cancelled and moved to next stage');
+      await fetchEmails();
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to cancel email and move to next stage'));
+    } finally {
+      setProcessingEmailAction(null);
+    }
+  };
+
+  const handleTerminateOutreach = async (email: Email) => {
+    if (!email.outreach?.id) {
+      toast.error('Outreach not found for this email');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Terminate "${email.outreach.name}"? This will delete the outreach and all associated emails immediately.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    const sequenceIdInput = window.prompt(
+      `Enter Email Sequence ID ${email.id} to confirm termination for "${email.outreach.name}".`,
+      `${email.id}`,
+    );
+    if (sequenceIdInput === null) {
+      return;
+    }
+
+    const emailSequenceId = Number(sequenceIdInput.trim());
+    if (!Number.isInteger(emailSequenceId) || emailSequenceId <= 0) {
+      toast.error('Invalid Email Sequence ID');
+      return;
+    }
+    if (emailSequenceId !== email.id) {
+      toast.error('Email Sequence ID does not match this row');
+      return;
+    }
+
+    try {
+      setProcessingEmailAction({ emailId: email.id, action: 'terminate' });
+      await apiService.terminateOutreachBySequence({
+        emailSequenceId,
+        outreachId: email.outreach.id,
+      });
+      toast.success(`Outreach "${email.outreach.name}" terminated`);
+      await fetchEmails();
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to terminate outreach'));
+    } finally {
+      setProcessingEmailAction(null);
     }
   };
 
@@ -612,6 +687,13 @@ export default function EmailsView() {
               const stageLabel = getStageLabel(email);
               const isPromotionInProgressForEmail =
                 promotionTarget?.id === email.id && (loadingPromotionPreview || sendingPromotion);
+              const isCancelInProgressForEmail =
+                processingEmailAction?.emailId === email.id && processingEmailAction.action === 'cancel';
+              const isTerminateInProgressForEmail =
+                processingEmailAction?.emailId === email.id && processingEmailAction.action === 'terminate';
+              const isActionInProgressForEmail = processingEmailAction?.emailId === email.id;
+              const canCancelAndAdvance = email.state === 'SCHEDULE' && hasNextStage(email);
+              const canTerminate = email.state === 'SCHEDULE';
 
               return (
                 <div key={email.id} className="p-6 hover:bg-gray-50 transition-colors">
@@ -664,10 +746,28 @@ export default function EmailsView() {
                     </div>
 
                     <div className="flex flex-col items-end space-y-1">
+                      {canCancelAndAdvance && (
+                        <button
+                          onClick={() => handleCancelAndAdvance(email)}
+                          disabled={isPromotionInProgressForEmail || isActionInProgressForEmail}
+                          className="inline-flex items-center px-2.5 py-1 rounded-md border border-amber-200 bg-amber-50 text-amber-700 text-xs font-medium hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isCancelInProgressForEmail ? 'Cancelling...' : 'Cancel & Next Stage'}
+                        </button>
+                      )}
+                      {canTerminate && (
+                        <button
+                          onClick={() => handleTerminateOutreach(email)}
+                          disabled={isPromotionInProgressForEmail || isActionInProgressForEmail}
+                          className="inline-flex items-center px-2.5 py-1 rounded-md border border-red-200 bg-red-50 text-red-700 text-xs font-medium hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isTerminateInProgressForEmail ? 'Terminating...' : 'Terminate'}
+                        </button>
+                      )}
                       {canPromoteAndSend(email) && (
                         <button
                           onClick={() => openPromotionModal(email)}
-                          disabled={isPromotionInProgressForEmail}
+                          disabled={isPromotionInProgressForEmail || isActionInProgressForEmail}
                           className="inline-flex items-center px-2.5 py-1 rounded-md border border-primary-200 bg-primary-50 text-primary-700 text-xs font-medium hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Promote & Send

@@ -412,6 +412,16 @@ class ApiService {
     return response.data;
   }
 
+  async cancelScheduledEmailAndAdvance(emailId: number) {
+    const response = await this.api.post(`/email/${emailId}/cancel-and-advance`);
+    return response.data;
+  }
+
+  async terminateOutreachBySequence(payload: { emailSequenceId: number; outreachId: number }) {
+    const response = await this.api.post('/email/terminate', payload);
+    return response.data;
+  }
+
   async replyToEmail(replyData: any) {
     const response = await this.api.post('/email/reply', replyData);
     return response.data;
