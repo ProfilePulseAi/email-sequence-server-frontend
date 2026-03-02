@@ -412,6 +412,11 @@ class ApiService {
     return response.data;
   }
 
+  async sendScheduledEmailNow(emailId: number) {
+    const response = await this.api.post(`/email/${emailId}/send-now`);
+    return response.data;
+  }
+
   async cancelScheduledEmailAndAdvance(emailId: number) {
     const response = await this.api.post(`/email/${emailId}/cancel-and-advance`);
     return response.data;

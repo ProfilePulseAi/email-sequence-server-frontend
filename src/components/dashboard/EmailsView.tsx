@@ -147,7 +147,7 @@ export default function EmailsView() {
   const [sendingPromotion, setSendingPromotion] = useState(false);
   const [processingEmailAction, setProcessingEmailAction] = useState<{
     emailId: number;
-    action: 'cancel' | 'terminate';
+    action: 'sendNow' | 'cancel' | 'terminate';
   } | null>(null);
 
   useEffect(() => {
@@ -336,6 +336,29 @@ export default function EmailsView() {
       await fetchEmails();
     } catch (error) {
       toast.error(getErrorMessage(error, 'Failed to cancel email and move to next stage'));
+    } finally {
+      setProcessingEmailAction(null);
+    }
+  };
+
+  const handleSendNow = async (email: Email) => {
+    if (email.state !== 'SCHEDULE') {
+      toast.error('Only scheduled emails can be sent immediately');
+      return;
+    }
+
+    const confirmed = window.confirm(`Send this scheduled email immediately to ${email.client?.emailId || 'this client'}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setProcessingEmailAction({ emailId: email.id, action: 'sendNow' });
+      await apiService.sendScheduledEmailNow(email.id);
+      toast.success('Scheduled email sent immediately');
+      await fetchEmails();
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to send scheduled email immediately'));
     } finally {
       setProcessingEmailAction(null);
     }
@@ -721,12 +744,14 @@ export default function EmailsView() {
                 promotionTarget?.id === email.id && (loadingPromotionPreview || sendingPromotion);
               const isCancelInProgressForEmail =
                 processingEmailAction?.emailId === email.id && processingEmailAction.action === 'cancel';
+              const isSendNowInProgressForEmail =
+                processingEmailAction?.emailId === email.id && processingEmailAction.action === 'sendNow';
               const isTerminateInProgressForEmail =
                 processingEmailAction?.emailId === email.id && processingEmailAction.action === 'terminate';
               const isActionInProgressForEmail = processingEmailAction?.emailId === email.id;
+              const canSendNow = email.state === 'SCHEDULE';
               const canCancelAndAdvance = email.state === 'SCHEDULE' && hasNextStage(email);
               const canTerminate = true;
-              const promoteActionLabel = email.state === 'SCHEDULE' ? 'Promote Message' : 'Promote & Send';
 
               return (
                 <div key={email.id} className="p-6 hover:bg-gray-50 transition-colors">
@@ -791,6 +816,15 @@ export default function EmailsView() {
                     </div>
 
                     <div className="flex flex-col items-end space-y-1">
+                      {canSendNow && (
+                        <button
+                          onClick={() => handleSendNow(email)}
+                          disabled={isPromotionInProgressForEmail || isActionInProgressForEmail}
+                          className="inline-flex items-center px-2.5 py-1 rounded-md border border-blue-200 bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isSendNowInProgressForEmail ? 'Sending...' : 'Send Now'}
+                        </button>
+                      )}
                       {canCancelAndAdvance && (
                         <button
                           onClick={() => handleCancelAndAdvance(email)}
@@ -815,7 +849,7 @@ export default function EmailsView() {
                           disabled={isPromotionInProgressForEmail || isActionInProgressForEmail}
                           className="inline-flex items-center px-2.5 py-1 rounded-md border border-primary-200 bg-primary-50 text-primary-700 text-xs font-medium hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {promoteActionLabel}
+                          Promote & Send
                         </button>
                       )}
                       <span
@@ -901,11 +935,7 @@ export default function EmailsView() {
                 disabled={sendingPromotion}
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {sendingPromotion
-                  ? 'Sending...'
-                  : promotionTarget.state === 'SCHEDULE'
-                    ? 'Promote Message'
-                    : 'Send Next Stage'}
+                {sendingPromotion ? 'Sending...' : 'Send Next Stage'}
               </button>
             </div>
           </div>
