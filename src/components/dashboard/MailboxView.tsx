@@ -132,7 +132,9 @@ export default function MailboxView() {
       sendingProbability: mailbox.sendingProbability,
       bidding: mailbox.bidding ?? true,
       shouldCheckReplies: mailbox.shouldCheckReplies,
-      mailsPer10Mins: mailbox.mailsPer10Mins || 2
+      mailsPer10Mins: mailbox.mailsPer10Mins || 2,
+      ...(mailbox.sendWindowStartUtc ? { sendWindowStartUtc: mailbox.sendWindowStartUtc } : {}),
+      ...(mailbox.sendWindowEndUtc ? { sendWindowEndUtc: mailbox.sendWindowEndUtc } : {})
     };
 
     navigator.clipboard.writeText(JSON.stringify(configToCopy, null, 2))
@@ -309,6 +311,11 @@ export default function MailboxView() {
                         <div>
                           <span className="font-medium">Bidding:</span> {mailbox.bidding === false ? 'Off' : 'On'}
                         </div>
+                        {(mailbox.sendWindowStartUtc || mailbox.sendWindowEndUtc) && (
+                          <div>
+                            <span className="font-medium">Send Window:</span> {mailbox.sendWindowStartUtc || '--:--'} – {mailbox.sendWindowEndUtc || '--:--'} UTC
+                          </div>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500 mt-2">
                         Added {mailbox.createdAt ? formatDate(mailbox.createdAt) : 'Unknown date'}

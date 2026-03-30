@@ -50,6 +50,8 @@ interface MailboxUpsertPayload {
   replyTo: string;
   maxEmailsPerDay: number;
   mailsPer10Mins: number;
+  sendWindowStartUtc?: string;
+  sendWindowEndUtc?: string;
 }
 
 const getDefaultMailboxValues = (): Partial<MailBox> => ({
@@ -80,6 +82,8 @@ const getDefaultMailboxValues = (): Partial<MailBox> => ({
   replyTo: '',
   maxEmailsPerDay: 300,
   mailsPer10Mins: 2,
+  sendWindowStartUtc: '',
+  sendWindowEndUtc: '',
 });
 
 const toNumberOrUndefined = (value: unknown): number | undefined => {
@@ -93,6 +97,24 @@ const toNumberOrUndefined = (value: unknown): number | undefined => {
 
 const trimString = (value?: string) => (value || '').trim();
 const hasValue = (value?: string) => Boolean(value && value.trim().length > 0);
+
+/** Convert a local HH:mm string to UTC HH:mm */
+const localTimeToUtc = (localTime?: string): string => {
+  if (!localTime || !/^\d{2}:\d{2}$/.test(localTime)) return '';
+  const [hours, minutes] = localTime.split(':').map(Number);
+  const now = new Date();
+  now.setHours(hours, minutes, 0, 0);
+  return `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`;
+};
+
+/** Convert a UTC HH:mm string to local HH:mm */
+const utcTimeToLocal = (utcTime?: string): string => {
+  if (!utcTime || !/^\d{2}:\d{2}$/.test(utcTime)) return '';
+  const [hours, minutes] = utcTime.split(':').map(Number);
+  const now = new Date();
+  now.setUTCHours(hours, minutes, 0, 0);
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+};
 
 const hasAnyImapValue = (imapConfig?: MailBox['imapConfig']) => {
   if (!imapConfig) return false;
@@ -138,6 +160,8 @@ const getFormMailboxValues = (mailbox?: MailBox): Partial<MailBox> => {
     maxEmailsPerDay: mailbox.maxEmailsPerDay ?? defaults.maxEmailsPerDay,
     sendingProbability: mailbox.sendingProbability ?? defaults.sendingProbability,
     bidding: mailbox.bidding ?? defaults.bidding,
+    sendWindowStartUtc: utcTimeToLocal(mailbox.sendWindowStartUtc) || defaults.sendWindowStartUtc,
+    sendWindowEndUtc: utcTimeToLocal(mailbox.sendWindowEndUtc) || defaults.sendWindowEndUtc,
   };
 };
 
@@ -229,6 +253,8 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
         replyTo: trimString(data.replyTo),
         maxEmailsPerDay,
         mailsPer10Mins,
+        ...(trimString(data.sendWindowStartUtc) ? { sendWindowStartUtc: localTimeToUtc(trimString(data.sendWindowStartUtc)) } : {}),
+        ...(trimString(data.sendWindowEndUtc) ? { sendWindowEndUtc: localTimeToUtc(trimString(data.sendWindowEndUtc)) } : {}),
       };
 
       const imapPort = toNumberOrUndefined(data.imapConfig?.port);
@@ -414,6 +440,14 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
       setValue('smtpConfig.auth.user', parsedData.smtpConfig.auth.user);
       setValue('smtpConfig.auth.pass', parsedData.smtpConfig.auth.pass);
       
+      // Send window times (optional) — JSON values are in UTC, convert to local for display
+      if (parsedData.sendWindowStartUtc) {
+        setValue('sendWindowStartUtc', utcTimeToLocal(parsedData.sendWindowStartUtc));
+      }
+      if (parsedData.sendWindowEndUtc) {
+        setValue('sendWindowEndUtc', utcTimeToLocal(parsedData.sendWindowEndUtc));
+      }
+
       // IMAP Config (optional)
       if (parsedData.imapConfig) {
         setValue('imapConfig.host', parsedData.imapConfig.host);
@@ -462,7 +496,9 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
       "sendingProbability": 100,
       "bidding": true,
       "shouldCheckReplies": true,
-      "mailsPer10Mins": 2
+      "mailsPer10Mins": 2,
+      "sendWindowStartUtc": "09:00",
+      "sendWindowEndUtc": "17:00"
     };
     
     setJsonInput(JSON.stringify(sampleJson, null, 2));
@@ -899,6 +935,49 @@ export default function MailboxForm({ mailbox, isOpen, onClose, onSuccess }: Mai
               </label>
             </div>
           </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="sendWindowStartUtc" className="block text-sm font-medium text-gray-700">
+                Send Window Start (Local Time)
+              </label>
+              <input
+                type="time"
+                id="sendWindowStartUtc"
+                {...register('sendWindowStartUtc', {
+                  pattern: {
+                    value: /^([01]\d|2[0-3]):([0-5]\d)$/,
+                    message: 'Must be in HH:mm format'
+                  }
+                })}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+              {errors.sendWindowStartUtc && (
+                <p className="mt-1 text-sm text-red-600">{errors.sendWindowStartUtc.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="sendWindowEndUtc" className="block text-sm font-medium text-gray-700">
+                Send Window End (Local Time)
+              </label>
+              <input
+                type="time"
+                id="sendWindowEndUtc"
+                {...register('sendWindowEndUtc', {
+                  pattern: {
+                    value: /^([01]\d|2[0-3]):([0-5]\d)$/,
+                    message: 'Must be in HH:mm format'
+                  }
+                })}
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+              {errors.sendWindowEndUtc && (
+                <p className="mt-1 text-sm text-red-600">{errors.sendWindowEndUtc.message}</p>
+              )}
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">Optional. Restrict sending to a specific time window. Times are shown in your local timezone and converted to UTC automatically.</p>
         </div>
 
         {/* Form Actions */}
